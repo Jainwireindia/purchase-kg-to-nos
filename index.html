@@ -1,0 +1,3252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Bill Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --steel:#E3E8EC;
+  --panel:#FFFFFF;
+  --panel-2:#F5F8FA;
+  --ink:#132029;
+  --ink-soft:#5A6C79;
+  --line:#C7D2DA;
+  --line-2:#9DAEBA;
+  --weld:#1F5F8B;
+  --weld-soft:#E2EDF4;
+  --ok:#1C6A4E; --ok-bg:#DCEDE4;
+  --warn:#8A6512; --warn-bg:#F6EBD2;
+  --bad:#983326; --bad-bg:#F3DFDB;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; color:var(--ink); font-family:'Inter',sans-serif; min-height:100vh;
+  background-color:var(--steel);
+  background-image:
+    linear-gradient(to right, rgba(31,95,139,.07) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(31,95,139,.07) 1px, transparent 1px);
+  background-size:26px 26px;
+  padding:34px 18px 100px;
+}
+.wrap{max-width:1180px;margin:0 auto}
+header{margin-bottom:18px}
+.eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--weld);margin:0 0 6px}
+h1{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:31px;letter-spacing:-.02em;margin:0 0 7px}
+header p{margin:0;color:var(--ink-soft);font-size:14px;line-height:1.55;max-width:720px}
+
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:18px 0 16px}
+.tab{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:8px 14px;border:1px solid var(--line);
+  background:var(--panel);color:var(--ink-soft);border-radius:2px;cursor:pointer}
+.tab:hover{border-color:var(--weld);color:var(--weld)}
+.tab.active{background:var(--weld);border-color:var(--weld);color:#fff}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:20px;margin-bottom:18px;display:none}
+.panel.open{display:block}
+.panel h3{font-family:'Space Grotesk',sans-serif;font-size:16px;margin:0 0 4px}
+.panel .desc{font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin:0 0 16px}
+.sub{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-soft);margin:20px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+.sub:first-of-type{margin-top:0}
+
+input,select{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:6px 8px;border:1px solid var(--line);
+  border-radius:2px;background:var(--panel-2);color:var(--ink)}
+input:focus,select:focus{outline:2px solid var(--weld);outline-offset:-1px;background:#fff}
+textarea{width:100%;font-family:'IBM Plex Mono',monospace;font-size:11.5px;padding:8px;border:1px solid var(--line);
+  border-radius:2px;background:var(--panel-2);min-height:150px;resize:vertical;line-height:1.5}
+label.fld{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:3px;font-weight:500}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.grid2 input,.grid2 select{width:100%}
+
+button{font-family:'IBM Plex Mono',monospace;font-size:12px;padding:8px 14px;border-radius:2px;cursor:pointer;
+  border:1px solid var(--line-2);background:var(--panel);color:var(--ink)}
+button:hover{border-color:var(--weld);color:var(--weld)}
+button.primary{background:var(--weld);border-color:var(--weld);color:#fff}
+button.primary:hover{background:#17486A;color:#fff}
+button.mini{padding:4px 8px;font-size:11px}
+button.danger{color:var(--bad);border-color:var(--line)}
+button.danger:hover{border-color:var(--bad);color:var(--bad)}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+
+table.grid{width:100%;border-collapse:collapse;font-size:12px}
+table.grid th{text-align:left;font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--ink-soft);border-bottom:1px solid var(--line-2);padding:6px 7px;font-weight:600}
+table.grid td{padding:5px 7px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.grid td.num{text-align:right;font-family:'IBM Plex Mono',monospace}
+table.grid th.num{text-align:right}
+table.grid tbody tr:hover{background:var(--panel-2)}
+.scroll{max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:2px}
+
+.note{font-size:12px;padding:9px 12px;border-radius:2px;border:1px solid var(--line);background:var(--panel-2);margin-top:12px;line-height:1.5}
+.note.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.note.warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.note.bad{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+
+.line{background:var(--panel);border:1px solid var(--line);border-radius:3px;margin-bottom:12px;overflow:hidden}
+.line.blocked{border-color:var(--bad)}
+.line-head{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between;
+  padding:11px 14px;border-bottom:1px solid var(--line);background:var(--panel-2)}
+.line-head .who{font-family:'Space Grotesk',sans-serif;font-size:14.5px;font-weight:600}
+.line-head .meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);margin-top:3px}
+.line-head .rt{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;white-space:nowrap}
+.line-body{padding:4px 14px 12px}
+.chip{display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;padding:2px 7px;border-radius:2px;
+  border:1px solid var(--line-2);color:var(--ink-soft);background:var(--panel);margin-left:6px}
+.chip.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.chip.warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.chip.bad{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+
+.map{background:var(--warn-bg);border:1px solid var(--warn);border-radius:2px;padding:10px 12px;margin:8px 0}
+.map h4{font-family:'Space Grotesk',sans-serif;font-size:12.5px;margin:0 0 4px;color:var(--warn)}
+.map p{margin:0 0 8px;font-size:11.5px;color:var(--ink-soft);line-height:1.5}
+.map .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.map select{min-width:340px;max-width:100%}
+
+.totals{display:flex;justify-content:flex-end;margin-top:6px}
+.totals table{font-size:12.5px;font-family:'IBM Plex Mono',monospace;min-width:340px}
+.totals td{padding:3px 0}
+.totals td:last-child{text-align:right;padding-left:26px}
+.totals td.cmp{font-size:11px;color:var(--ink-soft);text-align:right;padding-left:14px}
+.totals tr.grand td{font-weight:700;font-size:14px;border-top:1px solid var(--line-2);padding-top:7px}
+
+.exportbar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line-2);
+  padding:12px 18px;display:none;z-index:20;box-shadow:0 -3px 14px rgba(19,32,41,.10)}
+.exportbar.show{display:block}
+.exportbar .inner{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.exportbar .status{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--ink-soft)}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:78px;background:var(--ink);color:#fff;
+  font-family:'IBM Plex Mono',monospace;font-size:12px;padding:9px 16px;border-radius:2px;z-index:40;
+  opacity:0;pointer-events:none;transition:opacity .18s}
+.toast.show{opacity:1}
+.confirmbar{position:fixed;inset:0;background:rgba(19,32,41,.42);display:none;align-items:center;justify-content:center;z-index:50}
+.confirmbar.show{display:flex}
+.confirmbar .box{background:var(--panel);border:1px solid var(--line-2);border-radius:3px;padding:20px;max-width:420px}
+.confirmbar p{margin:0 0 14px;font-size:13px;line-height:1.55}
+.confirmbar button.go{background:var(--bad);border-color:var(--bad);color:#fff}
+
+.wsbar{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;background:var(--panel);
+  border:1px solid var(--line-2);border-left:3px solid var(--weld);border-radius:3px;padding:12px 16px;margin-top:16px}
+.wsfield{display:flex;flex-direction:column;min-width:230px}
+.wsfield select{font-size:13px;padding:7px 8px;font-family:'Space Grotesk',sans-serif;font-weight:600}
+.wsnote{flex:1;min-width:180px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-soft);
+  line-height:1.5;padding-bottom:3px}
+.wsnote b{color:var(--weld);font-weight:600}
+.cocard{border:1px solid var(--line);border-radius:3px;margin-bottom:12px;overflow:hidden}
+.cocard.active{border-color:var(--weld);border-left-width:3px}
+.cocard-head{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;
+  padding:10px 14px;background:var(--panel-2);border-bottom:1px solid var(--line)}
+.cocard-head .nm{font-family:'Space Grotesk',sans-serif;font-size:14px;font-weight:600}
+.cocard-head .st{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);margin-top:2px}
+.cocard-body{padding:12px 14px}
+
+.fix{background:var(--weld-soft);border:1px solid var(--weld);border-radius:3px;padding:12px 14px}
+.fix h4{font-family:'Space Grotesk',sans-serif;font-size:13px;margin:0 0 4px;color:var(--weld)}
+.fix p{margin:0 0 10px;font-size:11.5px;color:var(--ink-soft);line-height:1.5}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.bulkbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--weld);color:#fff;
+  border-radius:2px;padding:7px 12px;margin-bottom:10px}
+.bulkbar .count{font-family:'IBM Plex Mono',monospace;font-size:11.5px;margin-right:4px}
+.bulkbar button{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.45);color:#fff}
+.bulkbar button:hover{background:#fff;color:var(--weld);border-color:#fff}
+.bulkedit{display:none;flex-wrap:wrap;gap:10px;align-items:flex-end;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:2px;padding:10px 12px;margin-bottom:10px}
+.bulkedit.show{display:flex}
+.bulkedit label{display:block;font-size:10.5px;color:var(--ink-soft);margin-bottom:3px}
+input.dim{width:64px;text-align:right;background:#FFF8E1;border-color:var(--warn)}
+input.dim:focus{background:#fff}
+.drop{border:1.5px dashed var(--line-2);border-radius:3px;padding:22px;text-align:center;cursor:pointer;
+  background:var(--panel-2);margin-bottom:10px;transition:border-color .12s,background .12s}
+.drop:hover,.drop.drag{border-color:var(--weld);background:var(--weld-soft)}
+.drop.busy{border-style:solid;border-color:var(--weld);background:var(--weld-soft);cursor:progress}
+.drop .big{font-family:'Space Grotesk',sans-serif;font-size:14.5px;font-weight:600;margin-bottom:4px}
+.drop .small{font-size:11.5px;color:var(--ink-soft)}
+.pill{font-family:'IBM Plex Mono',monospace;font-size:10px;padding:1px 6px;border:1px solid var(--line-2);
+  border-radius:2px;color:var(--ink-soft);background:var(--panel-2)}
+.basis{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft)}
+code.k{font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--panel-2);padding:1px 5px;border:1px solid var(--line);border-radius:2px}
+@media (max-width:640px){ body{padding:20px 10px 110px} h1{font-size:24px} .map select{min-width:100%} }
+
+.gate{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:24px;margin-bottom:18px;max-width:760px;display:none}
+body.gated .gate{display:block}
+body.gated .wsbar, body.gated .tabs, body.gated .panel, body.gated .exportbar, body.gated #cloudBanner{display:none !important}
+.gate h3{font-family:'Space Grotesk',sans-serif;font-size:18px;margin:0 0 6px}
+.gate .desc{font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin:0 0 16px}
+#cloudPill{margin-left:auto;align-self:center;cursor:pointer}
+body.gated #hdrEyebrow{visibility:hidden}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="eyebrow" id="hdrEyebrow">&nbsp;</p>
+  <h1>Purchase Bill Builder</h1>
+  <p>Converts a supplier's KG-priced bill into a Tally purchase voucher, split by roll and sheet size.</p>
+</header>
+
+<div id="cloudBanner"></div>
+
+<!-- ============ LOGIN (shown first in a browser that isn't logged in) ============ -->
+<div class="gate" id="cloudGate">
+  <h3>Log in</h3>
+  <p class="desc">Log in to load the shared companies, items and settings. This browser stays logged in, and your changes reach every PC automatically.</p>
+  <div class="grid2">
+    <div id="g_urlwrap" style="display:none"><label class="fld">Web app URL</label><input id="g_url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></div>
+    <div><label class="fld">User name</label><input id="g_user" autocomplete="username"></div>
+    <div><label class="fld">Password</label><input id="g_key" type="password" autocomplete="current-password"></div>
+  </div>
+  <div class="btnrow"><button class="primary" id="gateConnectBtn">Log in</button></div>
+  <div id="gateStatus"></div>
+</div>
+
+<div class="wsbar">
+  <div class="wsfield">
+    <label class="fld">Company</label>
+    <select id="wsCompany"></select>
+  </div>
+  <div class="wsfield">
+    <label class="fld">Supplier</label>
+    <select id="wsSupplier"></select>
+  </div>
+  <div class="wsnote" id="wsNote"></div>
+</div>
+
+<div id="storageBanner"></div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="build">Convert bill</div>
+  <div class="tab" data-tab="items">Item master</div>
+  <div class="tab" data-tab="rules">Pricing rules</div>
+  <div class="tab" data-tab="settings">Settings</div>
+  <div class="tab" data-tab="companies">Companies &amp; suppliers</div>
+  <div class="tab" data-tab="log">Export log</div>
+  <div class="tab" data-tab="cloud">Cloud &amp; backup</div>
+  <span id="cloudPill" class="chip" style="display:none" title="Cloud sync — click for details"></span>
+</div>
+
+<!-- ============ CONVERT ============ -->
+<div class="panel open" id="tab-build">
+  <div class="sub">Bill lines</div>
+  <p class="desc">Drop the bill PDF, or paste its goods table.</p>
+
+  <div class="drop" id="pdfDrop">
+    <div class="big">Drop the invoice PDF here</div>
+    <div class="small">or click to choose a file · the PDF is read inside this page and never uploaded anywhere</div>
+  </div>
+  <input type="file" id="pdfInput" accept="application/pdf,.pdf" style="display:none">
+
+  <textarea id="pasteBox" placeholder="…or paste the goods table here"></textarea>
+  <div class="btnrow">
+    <button class="primary" id="readBtn">Read bill</button>
+    <button id="addLineBtn">Add a line by hand</button>
+    <button id="clearLinesBtn" class="danger">Clear lines</button>
+  </div>
+  <div id="readNote"></div>
+
+  <div class="sub">Bill header</div>
+  <div class="grid2">
+    <div><label class="fld">Supplier invoice no.</label><input id="h_invno"></div>
+    <div><label class="fld">Invoice date</label><input type="date" id="h_date"></div>
+    <div><label class="fld">CGST on the bill</label><input id="h_cgst"></div>
+    <div><label class="fld">SGST on the bill</label><input id="h_sgst"></div>
+    <div><label class="fld">Round off on the bill</label><input id="h_round"></div>
+    <div><label class="fld">Grand total on the bill</label><input id="h_grand"></div>
+    <div><label class="fld">Total KG on the bill</label><input id="h_kg"></div>
+  </div>
+
+  <div id="lines" style="margin-top:18px"></div>
+  <div id="grandTotals"></div>
+</div>
+
+<!-- ============ ITEMS ============ -->
+<div class="panel" id="tab-items">
+  <h3>Item master</h3>
+  <p class="desc">Bill code → exact Tally stock item name. Height and length in feet.</p>
+  <div class="btnrow" style="margin:0 0 12px">
+    <input id="itemSearch" placeholder="search code or name" style="width:210px">
+    <select id="itemCatFilter" style="width:220px"><option value="">All categories</option></select>
+    <button id="addItemBtn">Add item</button>
+    <button id="pasteItemsBtn">Paste from Excel</button>
+    <button id="itemExportBtn">Export to CSV</button>
+    <button id="itemXlsxExportBtn">Export to Excel</button>
+    <button id="itemXlsxImportBtn">Import from Excel</button>
+    <button id="clearItemsBtn" class="danger">Clear all items</button>
+  </div>
+  <input type="file" id="itemXlsxImportFile" accept=".xlsx,.xls" style="display:none">
+  <div id="itemXlsxStatus" class="desc" style="margin-bottom:6px"></div>
+  <div id="itemXlsxPreview"></div>
+  <div id="itemDupWarn"></div>
+  <div id="itemBulkBar"></div>
+
+  <div id="newItemBox" class="fix" style="display:none;margin-bottom:12px">
+    <h4>Add an item</h4>
+    <p>Code, Tally name and category are required. Size is guessed from the code — check it.</p>
+    <div class="row">
+      <div><label class="fld">Code *</label><input id="niCode" style="width:170px"></div>
+      <div><label class="fld">Tally stock item name *</label><input id="niName" style="width:300px"></div>
+      <div><label class="fld">Category *</label><select id="niCat" style="width:220px"></select></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label class="fld">Unit</label><input id="niUnit" style="width:80px"></div>
+      <div><label class="fld">Ht ft</label><input id="niH" style="width:70px"></div>
+      <div><label class="fld">Len ft</label><input id="niL" style="width:70px"></div>
+      <div><label class="fld">HSN</label><input id="niHsn" style="width:100px"></div>
+      <div><label class="fld">GST %</label><input id="niGst" style="width:70px"></div>
+      <div><label class="fld">Other codes / spellings</label><input id="niVariants" style="width:220px"></div>
+    </div>
+    <div id="niWarn"></div>
+    <div class="btnrow" style="margin-top:10px"><button class="primary" id="niSave">Save item</button><button id="niCancel">Cancel</button></div>
+  </div>
+
+  <div id="pasteItemsBox" style="display:none;margin-bottom:12px">
+    <p class="desc">One item per line: <code class="k">code · Tally name · category · unit · height · length · HSN · GST % · other codes</code></p>
+    <textarea id="pasteItemsText"></textarea>
+    <div class="btnrow"><button class="primary" id="pasteItemsGo">Add these items</button><button id="pasteItemsCancel">Cancel</button></div>
+  </div>
+
+  <div class="scroll"><table class="grid" id="itemTable"></table></div>
+  <div class="btnrow">
+    <button id="itemBackupBtn">Download master backup</button>
+    <button id="itemRestoreBtn">Restore from backup</button>
+  </div>
+</div>
+
+<!-- ============ RULES ============ -->
+<div class="panel" id="tab-rules">
+  <h3>Pricing rules</h3>
+  <p class="desc">Unit, decimals and GST for each category.</p>
+  <table class="grid" id="rulesTable"></table>
+  <div class="sub">Tie-out</div>
+  <div class="grid2">
+    <div>
+      <label class="fld">When rounded rates miss the line total by a paisa or two</label>
+      <select id="r_tie">
+        <option value="exact">Tie exactly — carry the difference on the largest row's amount</option>
+        <option value="clean">Keep clean 2-decimal rates — leave the difference showing</option>
+      </select>
+    </div>
+  </div>
+  <div class="btnrow"><button class="primary" id="saveRules">Save rules</button></div>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<div class="panel" id="tab-settings">
+  <h3>Settings <span class="chip" id="setScope"></span></h3>
+  <p class="desc">For the selected company. Ledger names must match Tally exactly.</p>
+
+  <div class="sub">This company</div>
+  <div class="grid2">
+    <div><label class="fld">Company name in Tally</label><input id="s_company"></div>
+    <div><label class="fld">Your GSTIN</label><input id="s_gstin"></div>
+    <div><label class="fld">Your state</label><input id="s_state"></div>
+    <div><label class="fld">Voucher type</label><input id="s_vtype"></div>
+    <div><label class="fld">Godown</label><input id="s_godown"></div>
+    <div><label class="fld">Sheet &amp; roll weldmesh billed by</label><select id="s_billMode">
+      <option value="count">Pieces / rolls</option>
+      <option value="sqft">Sq.ft</option>
+    </select></div>
+  </div>
+
+  <div class="sub">Purchase ledgers — 18%</div>
+  <div class="grid2">
+    <div><label class="fld">Within your state</label><input id="s_purchLocal18"></div>
+    <div><label class="fld">Outside your state</label><input id="s_purchInter18"></div>
+  </div>
+  <div class="sub">Purchase ledgers — 5%</div>
+  <div class="grid2">
+    <div><label class="fld">Within your state</label><input id="s_purchLocal5"></div>
+    <div><label class="fld">Outside your state</label><input id="s_purchInter5" placeholder="not set yet"></div>
+  </div>
+
+  <div class="sub">Tax and rounding</div>
+  <div class="grid2">
+    <div><label class="fld">CGST ledger</label><input id="s_cgst"></div>
+    <div><label class="fld">SGST ledger</label><input id="s_sgst"></div>
+    <div><label class="fld">IGST ledger</label><input id="s_igst"></div>
+    <div><label class="fld">Round off ledger</label><input id="s_round"></div>
+    <div><label class="fld">Tax in the export</label><select id="s_includeTax">
+      <option value="yes">Include CGST / SGST / round off</option>
+      <option value="no">Leave tax out — staff add it in Tally</option>
+    </select></div>
+  </div>
+  <div class="btnrow"><button class="primary" id="saveSettings">Save settings</button></div>
+</div>
+
+<!-- ============ COMPANIES ============ -->
+<div class="panel" id="tab-companies">
+  <h3>Companies &amp; suppliers</h3>
+  <p class="desc">Each company has its own items, rules, settings and suppliers.</p>
+
+  <div class="btnrow" style="margin:0 0 14px">
+    <input id="newCompanyName" placeholder="new company name, e.g. Company name — Branch" style="width:380px">
+    <button class="primary" id="addCompanyBtn">Add company</button>
+  </div>
+
+  <div id="companyList"></div>
+
+  <div class="sub">Move an item master between companies</div>
+  <p class="desc">Replaces the destination's item master.</p>
+  <div class="btnrow">
+    <select id="copyFrom" style="min-width:230px"></select>
+    <span style="align-self:center;color:var(--ink-soft);font-size:12px">copy the item master into</span>
+    <select id="copyTo" style="min-width:230px"></select>
+    <button id="copyMasterBtn">Copy master</button>
+  </div>
+
+  <div class="sub">Master list (Excel — editable) <span class="chip" id="masterXlsxScope"></span></div>
+  <p class="desc">Items, suppliers and settings of this company. Edit in Excel and import back — full instructions are inside the file.</p>
+  <div class="btnrow">
+    <button id="masterXlsxExportBtn">Export master list to Excel</button>
+    <button id="masterXlsxImportBtn">Import from Excel</button>
+  </div>
+  <input type="file" id="masterXlsxImportFile" accept=".xlsx,.xls" style="display:none">
+  <div id="masterXlsxStatus" class="desc" style="margin-top:6px"></div>
+  <div id="masterXlsxPreview"></div>
+
+</div>
+
+<!-- ============ CLOUD & BACKUP ============ -->
+<div class="panel" id="tab-cloud">
+  <h3>Cloud &amp; backup</h3>
+  <div class="sub">Cloud sync</div>
+  <p class="desc">Changes go to the cloud a few seconds after you make them. The latest copy loads when the page opens or comes back into focus.</p>
+  <div class="grid2">
+    <div id="c_urlwrap" style="display:none"><label class="fld">Web app URL</label><input id="c_url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off"></div>
+    <div><label class="fld">User name</label><input id="c_user" autocomplete="username"></div>
+    <div><label class="fld">Password</label><input id="c_key" type="password" autocomplete="current-password"></div>
+  </div>
+  <div class="btnrow">
+    <button class="primary" id="cloudConnectBtn">Log in / switch user</button>
+    <button id="cloudPushBtn">Save to cloud now</button>
+    <button id="cloudPullBtn">Load from cloud now</button>
+    <button class="danger" id="cloudDisconnectBtn">Log out</button>
+    <button class="danger" id="cloudWipeBtn">Log out and clear this browser</button>
+  </div>
+  <div id="cloudStatus" class="note" style="display:none"></div>
+
+  <div class="sub">Whole-workspace backup</div>
+  <p class="desc">All companies in one file, kept offline by you. Restoring replaces everything — and when logged in, it becomes the cloud copy every PC loads.</p>
+  <div class="btnrow">
+    <button id="wsBackupBtn">Download workspace backup</button>
+    <button id="wsRestoreBtn">Restore workspace</button>
+  </div>
+</div>
+
+<!-- ============ LOG ============ -->
+<div class="panel" id="tab-log">
+  <h3>Export log</h3>
+  <p class="desc">Bills already exported — stops duplicates.</p>
+  <div class="scroll"><table class="grid" id="logTable"></table></div>
+  <div class="btnrow"><button class="danger" id="clearLogBtn">Clear log</button></div>
+</div>
+
+</div>
+
+<div class="exportbar" id="exportBar">
+  <div class="inner">
+    <div class="status" id="exportStatus"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button id="exportCsvBtn">Download summary CSV</button>
+      <button class="primary" id="exportXmlBtn">Download Tally XML</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="confirmbar" id="confirmBar">
+  <div class="box">
+    <p id="confirmText"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="confirmNo">Cancel</button>
+      <button class="go" id="confirmYes">Confirm</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="restoreInput" accept=".json" style="display:none">
+
+<script>
+/* ============================ STATE ============================ */
+let rules = {
+  sheet_pcs:   { label:'Sheet weldmesh',         dim:true,  lengthFt:12, tax:18, decimals:2, unit:'PCS',  billBy:'count' },
+  roll_mesh:   { label:'Roll weldmesh',          dim:true,  lengthFt:50, tax:18, decimals:2, unit:'ROLL', billBy:'count' },
+  chainlink:   { label:'GI Chainlink',           dim:true,  lengthFt:50, tax:18, decimals:6, unit:'SQFT', billBy:'sqft' },
+  generic:     { label:'Common name — size at billing', dim:true, sizeAtBilling:true, lengthFt:50, tax:18, decimals:2, unit:'ROLL', billBy:'count' },
+  sqft:        { label:'Weldmesh by sq.ft',      dim:true,  lengthFt:50, tax:18, decimals:6, unit:'SQFT', billBy:'sqft'  },
+  kg_bundle:   { label:'Wire / nails in bundles',dim:false, tax:18, decimals:2, unit:'KG' },
+  kg_direct:   { label:'Loose weight (KG)',      dim:false, tax:18, decimals:2, unit:'KG' },
+  flat:        { label:'Direct / flat rate',     dim:false, tax:18, decimals:2, unit:'NOS' },
+  flat_5:      { label:'5% items (Velcro / Shade Net)', dim:false, tax:5, decimals:2, unit:'NOS' }
+};
+/* Pristine copy taken before any company is loaded. defaultRules() must clone
+   this, never the live `rules`, which by then points at the active company. */
+const BASE_RULES = JSON.parse(JSON.stringify(rules));
+let tieMode = 'exact';
+let settings = {};   // filled from the active company — nothing is built into the file
+let items = [];      // filled from the browser or the cloud
+let aliases = [];
+let supLines = [];   // parsed supplier lines
+let exportLog = [];
+
+/* ============================ HELPERS ============================ */
+const $ = id => document.getElementById(id);
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._h); toast._h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function askConfirm(msg, onYes){
+  const bar = $('confirmBar');
+  $('confirmText').textContent = msg;
+  bar.classList.add('show');
+  const yesBtn = $('confirmYes'), noBtn = $('confirmNo');
+  const cleanup = () => { bar.classList.remove('show'); yesBtn.removeEventListener('click', y); noBtn.removeEventListener('click', n); };
+  const y = () => { cleanup(); onYes(); };
+  const n = () => { cleanup(); };
+  yesBtn.addEventListener('click', y); noBtn.addEventListener('click', n);
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function tight(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+function r2(n){ return Math.round((n + (n<0?-1e-9:1e-9))*100)/100; }
+/* Plain 2-decimal round, no nudge. Tax has to use this: eight rows on a typical
+   bill land exactly on a half paisa, and the nudge in r2 rounds those up while
+   the supplier's system rounds them down. Two paise adrift is enough to make the
+   bill fail to reconcile. */
+function rp(n){ return Math.round(n*100)/100; }
+function roundDp(n, dp){ const f = Math.pow(10, Math.max(0, Math.min(6, dp||0))); return Math.round(n*f)/f; }
+function money(n){ return (r2(n)).toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function qtyFmt(n){ const r=Math.round(n*1000)/1000; return String(r); }
+function num(v){ const n = parseFloat(String(v==null?'':v).replace(/,/g,'').trim()); return isNaN(n)?null:n; }
+function todayISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function isoToTally(iso){ return (iso||'').replace(/-/g,''); }
+function stamp(){
+  const d = new Date(), p = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+}
+/* Accepts tab separated or comma separated, respecting quoted commas so a
+   variants field can hold several codes. */
+function splitPaste(text){
+  return String(text||'').split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+    .map(l => l.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c => c.trim().replace(/^"|"$/g,'')));
+}
+/* A code alone usually states the category and the size. Offered as a prefill on
+   the add form, never forced over something typed by hand. */
+function guessSpec(code){
+  const s = String(code||''), low = s.toLowerCase();
+  const fts = [...s.matchAll(/(\d+(?:\.\d+)?)\s*ft/gi)].map(m => parseFloat(m[1]));
+  const out = { cat:'flat', h:null, l:null };
+  if(low.includes('velcro') || low.includes('shade net')){ out.cat='flat_5'; return out; }
+  if(low.includes('nail') || low.includes('wire')){ out.cat='kg_bundle'; return out; }
+  if(low.includes('chain')){
+    out.cat='chainlink';
+    if(fts.length >= 2){ out.h = fts[0]; out.l = fts[1]; }
+    else if(fts.length === 1){ out.h = fts[0]; out.l = 50; }
+    return out;
+  }
+  const parts = s.split(/\s+/)[0].split(/x/i);
+  const nums = parts.map(p => {
+    const f = p.match(/^(\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/);
+    if(f) return parseFloat(f[1])/parseFloat(f[2]);
+    const n = parseFloat(p);
+    return isNaN(n) ? null : n;
+  });
+  const hasMM = /\d\s*mm/i.test(s);
+  if(nums.length >= 4 && nums[2] !== null && nums[3] !== null){
+    if(hasMM){ out.cat='sheet_pcs'; out.l = nums[2]; out.h = nums[3]; }
+    else { out.cat='roll_mesh'; out.h = nums[3]; out.l = fts.length ? fts[fts.length-1] : 50; }
+    return out;
+  }
+  if(fts.length >= 2){ out.cat='roll_mesh'; out.h=fts[0]; out.l=fts[1]; }
+  return out;
+}
+
+/* ============================ STORAGE ============================ */
+/* ============================ WORKSPACE ============================
+   Everything lives under one `db`. Each company owns its own item master,
+   aliases, rules, settings, suppliers and export log — nothing is shared.
+
+   The globals above (items / aliases / rules / settings / exportLog) are a live
+   view of whichever company is active. hydrate() points them at that company's
+   records; dehydrate() writes them back. save() always dehydrates first, so a
+   reassignment like `items = []` can never silently detach from the store. */
+const STORE_KEY = 'jwnc_purchasebuilder_v2';
+
+let db = null;   // { activeCompanyId, companies: [...] }
+
+function uid(prefix){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function blankSettings(name){
+  return { company:name||'', gstin:'', state:'Kerala', vtype:'Purchase', godown:'',
+           purchLocal18:'PURCHASE GST @ 18%', purchInter18:'Interstate Purchase 18%',
+           purchLocal5:'PURCHASE GST @ 5%', purchInter5:'',
+           cgst:'CGST', sgst:'SGST', igst:'IGST', round:'Round Off', includeTax:'yes' };
+}
+function defaultRules(){ return JSON.parse(JSON.stringify(BASE_RULES)); }
+/* CLT and KNR book weldmesh by area rather than by piece or roll. */
+function sqftRules(){
+  const r = defaultRules();
+  ['sheet_pcs','roll_mesh','chainlink','generic'].forEach(k => {
+    r[k].billBy = 'sqft'; r[k].unit = 'SQFT'; r[k].decimals = 6;
+  });
+  return r;
+}
+
+/* How a company books its sized items. 'count' = qty in pieces/rolls at a
+   per-piece rate (EKM). 'sqft' = qty is count × height × length at a per-sq.ft
+   rate (Calicut, Kannur). Chainlink is always sq.ft. Weight and flat items are
+   never touched. */
+const SIZED_CATS = ['sheet_pcs','roll_mesh','generic'];
+function applyBillMode(r, mode){
+  SIZED_CATS.forEach(k => {
+    if(!r[k]) return;
+    if(mode === 'sqft'){ r[k].billBy = 'sqft'; r[k].unit = 'SQFT'; r[k].decimals = 6; }
+    else { r[k].billBy = 'count'; r[k].unit = BASE_RULES[k].unit; r[k].decimals = 2; }
+  });
+  if(r.chainlink){ r.chainlink.billBy = 'sqft'; r.chainlink.unit = 'SQFT'; r.chainlink.decimals = 6; }
+  return r;
+}
+function guessBillMode(label){
+  return /\b(CLT|KNR|calicut|kozhikode|kannur)\b/i.test(String(label||'')) ? 'sqft' : 'count';
+}
+
+function newCompany(label, opts){
+  opts = opts || {};
+  return {
+    id: uid('co'),
+    label,                                   // what the dropdown shows
+    settings: opts.settings || blankSettings(label),
+    rules: opts.rules || defaultRules(),
+    tieMode: opts.tieMode || 'exact',
+    items: opts.items || [],
+    aliases: opts.aliases || [],
+    suppliers: opts.suppliers || [],
+    activeSupplierId: opts.activeSupplierId || null,
+    exportLog: opts.exportLog || []
+  };
+}
+
+function activeCompany(){
+  if(!db || !db.companies.length) return null;
+  return db.companies.find(c => c.id === db.activeCompanyId) || db.companies[0];
+}
+function activeSupplier(){
+  const c = activeCompany();
+  if(!c || !c.suppliers.length) return null;
+  return c.suppliers.find(s => s.id === c.activeSupplierId) || c.suppliers[0];
+}
+
+/* company record -> globals */
+function hydrate(){
+  const c = activeCompany();
+  if(!c) return;
+  items    = c.items;
+  aliases  = c.aliases;
+  rules    = c.rules;
+  settings = c.settings;
+  exportLog= c.exportLog;
+  tieMode  = c.tieMode || 'exact';
+}
+/* globals -> company record */
+function dehydrate(){
+  const c = activeCompany();
+  if(!c) return;
+  c.items = items; c.aliases = aliases; c.rules = rules;
+  c.settings = settings; c.exportLog = exportLog; c.tieMode = tieMode;
+}
+
+let storageOK = null;   // null until first attempt; false means nothing is persisting
+
+async function save(){
+  dehydrate();
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify(db));
+    if(storageOK !== true){ storageOK = true; renderStorageBanner(); }
+  }catch(e){
+    if(storageOK !== false){ storageOK = false; renderStorageBanner(); }
+  }
+  cloudNoteChange();   // the cloud copy still works even when this browser can't store locally
+}
+function renderStorageBanner(){
+  const el = document.getElementById('storageBanner');
+  if(!el) return;
+  el.innerHTML = storageOK === false ? `<div class="note bad" style="margin:12px 0 0">
+    <b>This browser is not keeping a copy.</b> It is blocking local storage (private window or strict privacy
+    settings). While you are logged in, changes still go to the cloud — but open the tool in a normal window to keep working offline.</div>` : '';
+}
+
+/* A browser that has never logged in starts with one empty company and
+   nothing else. Real data only ever arrives from the cloud, from this
+   browser's own storage, or from a backup someone restores. */
+const BLANK_LABEL = 'New company';
+function blankWorkspace(){
+  const c = newCompany(BLANK_LABEL, { rules: applyBillMode(defaultRules(), 'count') });
+  c.billMode = 'count';
+  c.settings.company = '';
+  return { activeCompanyId: c.id, companies: [c] };
+}
+function hasLocalData(){
+  return !!db && db.companies.some(c =>
+    (c.items && c.items.length) || (c.suppliers && c.suppliers.length) || (c.exportLog && c.exportLog.length));
+}
+
+function repair(d){
+  /* Anything reaching here may be an old file, a hand-edited backup, or a
+     restore from a different version. Fill in whatever is missing rather than
+     letting an undefined array reach the render and blank the page. */
+  if(!d || typeof d !== 'object' || !Array.isArray(d.companies) || !d.companies.length) return null;
+  d.companies.forEach(c => {
+    if(!c.id) c.id = uid('co');
+    if(!c.label) c.label = c.settings && c.settings.company ? c.settings.company : 'Untitled company';
+    c.settings  = Object.assign(blankSettings(c.label), c.settings || {});
+    c.rules     = Object.assign(defaultRules(), c.rules || {});
+    /* One-time: companies saved before billing mode existed get it from their
+       name (CLT / KNR book by sq.ft), which also moves chainlink to sq.ft. After
+       that the choice on the Settings tab is what counts. */
+    if(c.billMode !== 'sqft' && c.billMode !== 'count'){
+      c.billMode = guessBillMode(c.label) === 'sqft' ? 'sqft'
+                 : (c.rules.roll_mesh && c.rules.roll_mesh.billBy === 'sqft' ? 'sqft' : 'count');
+      applyBillMode(c.rules, c.billMode);
+    }
+    c.tieMode   = c.tieMode || 'exact';
+    c.items     = Array.isArray(c.items) ? c.items : [];
+    c.exportLog = Array.isArray(c.exportLog) ? c.exportLog : [];
+
+    /* Alternate codes used to live in a separate aliases table. They belong on
+       the item itself, so fold any old ones into that item's variants and drop
+       the table. Anything pointing at a code that no longer exists is kept in a
+       holding list rather than thrown away silently. */
+    if(Array.isArray(c.aliases) && c.aliases.length){
+      const orphans = [];
+      c.aliases.forEach(a => {
+        if(!a || !a.from || !a.to) return;
+        const target = c.items.find(i => tight(i.code) === tight(a.to));
+        if(!target){ orphans.push(a); return; }
+        const have = String(target.variants||'').split(',').map(v=>v.trim()).filter(Boolean);
+        if(!have.some(v => tight(v) === tight(a.from))){
+          have.push(a.from);
+          target.variants = have.join(', ');
+        }
+      });
+      c.aliases = orphans;
+    } else {
+      c.aliases = [];
+    }
+    c.items.forEach(i => { if(i.variants == null) i.variants = ''; });
+    c.suppliers = Array.isArray(c.suppliers) ? c.suppliers : [];
+    c.suppliers.forEach(s => { if(!s.id) s.id = uid('sup'); });
+    if(!c.suppliers.find(s => s.id === c.activeSupplierId)) c.activeSupplierId = c.suppliers[0] ? c.suppliers[0].id : null;
+  });
+  if(!d.companies.find(c => c.id === d.activeCompanyId)) d.activeCompanyId = d.companies[0].id;
+  return d;
+}
+
+async function load(){
+  let loaded = null;
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) loaded = repair(JSON.parse(raw));
+    localStorage.setItem('jwnc_purchase_probe','1'); localStorage.removeItem('jwnc_purchase_probe');
+    storageOK = true;
+  }catch(e){ storageOK = false; }
+  db = loaded || repair(blankWorkspace());
+  hydrate();
+  renderAll();
+}
+
+async function switchCompany(id){
+  dehydrate();                 // keep whatever the current company had
+  db.activeCompanyId = id;
+  hydrate();
+  selectedItems.clear();       // selections hold items from the company we just left
+  supLines = [];               // a half-converted bill must not carry across books
+  $('pasteBox').value = ''; $('readNote').innerHTML = '';
+  await save();
+  renderAll();
+  const c = activeCompany();
+  toast(`Switched to ${c.label} — ${items.length} item${items.length===1?'':'s'} in its master`);
+}
+
+/* ============================ CLOUD SYNC ============================
+   Talks to a Google Apps Script web app that keeps one JSON copy of the whole
+   workspace (every company, its items, rules, settings, suppliers and export
+   log) in Google Drive. Every save() queues an upload a few seconds later; the
+   page checks for a newer copy when it opens, when it comes back into focus,
+   and every couple of minutes. Each upload names the cloud revision it started
+   from — if another PC saved in between, the script refuses and the user picks
+   how to settle it, so nothing is ever overwritten silently.
+
+   Which company a PC is looking at is that PC's own choice: activeCompanyId is
+   never sent, so switching company on one PC never moves anyone else.
+
+   The login lives in its own localStorage key, never inside a backup. Keys are
+   prefixed differently from the sales tool's, because both tools can be hosted
+   on the same github.io address and would otherwise share one storage. */
+// Paste the Apps Script web app link (ends in /exec) between the quotes before
+// publishing. Left blank, the login screen asks for it once per browser instead.
+const CLOUD_URL = 'https://script.google.com/macros/s/AKfycbx_h_B-5o0aM95zqvX0fsklwYYjB4JZFmSVIVVo_3cfxbqzT0Qm6zEInPQ_wATd6g1YHQ/exec';
+const CLOUD_CFG_KEY = 'jwnc_purchase_cloud';
+const CLOUD_PUSH_DELAY = 3000;
+const CLOUD_POLL_MS = 120000;
+let cloud = { url:'', user:'', key:'', rev:'', dirty:false, lastSync:'', lastBy:'', snap:'' };
+let cloudState = 'off';      // off | ok | pending | saving | offline | conflict | error
+let cloudMsg = '';
+let cloudTimer = null, cloudRetry = null, cloudBusy = false, cloudApplying = false;
+let cloudEditSeq = 0, cloudLastCheck = 0;
+let cloudChoice = null;      // { kind:'first'|'conflict', savedBy, savedAt } while waiting on the user
+
+function cloudLoadCfg(){ try{ Object.assign(cloud, JSON.parse(localStorage.getItem(CLOUD_CFG_KEY)||'{}')); }catch(e){} }
+function cloudUrl(){ return CLOUD_URL || cloud.url || ''; }
+function cloudSaveCfg(){ try{ localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cloud)); }catch(e){} }
+function cloudOn(){ return !!(cloudUrl() && cloud.user && cloud.key); }
+function cloudSnapshot(){
+  dehydrate();
+  const out = {}; Object.keys(db).forEach(k => { if(k !== 'activeCompanyId') out[k] = db[k]; });
+  return JSON.stringify(out);
+}
+// Short fingerprint of what was last in step with the cloud, so a save() that
+// changed nothing shared (switching company, say) never uploads.
+function cloudHash(str){
+  let h = 2166136261;
+  for(let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36) + ':' + str.length;
+}
+function cloudTime(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  return isNaN(d) ? '' : d.toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
+async function cloudCall(action, extra){
+  let res;
+  try{
+    // text/plain keeps this a "simple" request — Apps Script can't answer the
+    // CORS preflight that application/json would trigger.
+    res = await fetch(cloudUrl(), {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action, user:cloud.user, key:cloud.key }, extra || {}))
+    });
+  }catch(e){
+    const err = new Error(navigator.onLine === false
+      ? 'No internet connection — changes are kept on this PC and will upload when it is back.'
+      : 'Could not reach the cloud. Check the internet connection, and that the Apps Script is deployed with "Who has access: Anyone".');
+    err.offline = true; throw err;
+  }
+  if(!res.ok){ const err = new Error('Cloud replied with HTTP ' + res.status); err.offline = true; throw err; }
+  const txt = await res.text();
+  let j;
+  try{ j = JSON.parse(txt); }
+  catch(e){ throw new Error('That URL is not the purchase-tool script (it returned a web page, not data). Use the Web app URL that ends in /exec.'); }
+  if(j && j.auth){ const err = new Error(j.error || 'Wrong user name or password.'); err.auth = true; throw err; }
+  return j;
+}
+
+function cloudApply(p){
+  cloudApplying = true;   // the save() below must not queue an upload of what we just downloaded
+  try{
+    const keep = db && db.activeCompanyId;
+    const fixed = repair(Object.assign({}, p, { activeCompanyId: keep }));
+    if(!fixed) throw new Error('The cloud copy could not be read.');
+    db = fixed; hydrate(); selectedItems.clear();
+    save(); renderAll();
+  } finally { cloudApplying = false; }
+}
+
+// Cloud copy, plus anything that exists only on this PC. A row counts as
+// "already in the cloud" if its hidden ID or its code/name matches.
+function cloudCombine(remote){
+  const addMissing = (base, mine, keysOf) => {
+    base = Array.isArray(base) ? base : [];
+    const seen = new Set();
+    base.forEach(x => keysOf(x).forEach(k => seen.add(k)));
+    const extra = (mine || []).filter(x => {
+      const ks = keysOf(x);
+      if(!ks.length || ks.some(k => seen.has(k))) return false;
+      ks.forEach(k => seen.add(k));
+      return true;
+    }).map(x => JSON.parse(JSON.stringify(x)));
+    return base.concat(extra);
+  };
+  dehydrate();
+  const out = JSON.parse(JSON.stringify(remote));
+  out.companies = Array.isArray(out.companies) ? out.companies : [];
+  db.companies.forEach(lc => {
+    const empty = !(lc.items||[]).length && !(lc.suppliers||[]).length && !(lc.exportLog||[]).length;
+    const rc = out.companies.find(c => c.id === lc.id) || out.companies.find(c => tight(c.label) === tight(lc.label));
+    if(!rc){ if(!empty) out.companies.push(JSON.parse(JSON.stringify(lc))); return; }
+    rc.items = addMissing(rc.items, lc.items, it => [it.id && 'id:'+it.id, tight(it.code) && 'c:'+tight(it.code)].filter(Boolean));
+    rc.suppliers = addMissing(rc.suppliers, lc.suppliers, x => [x.id && 'id:'+x.id, tight(x.name) && 'n:'+tight(x.name)].filter(Boolean));
+    rc.exportLog = addMissing(rc.exportLog, lc.exportLog, e => [(e.invno||'') + '|' + (e.at||'')])
+      .sort((a,b) => String(b.at||'').localeCompare(String(a.at||'')));
+  });
+  return out;
+}
+
+function cloudNoteChange(){
+  if(cloudApplying || !cloudOn()) return;
+  if(cloud.snap && cloudHash(cloudSnapshot()) === cloud.snap){
+    // Nothing shared changed (or an edit was undone) — nothing to upload.
+    if(cloud.dirty && !cloudBusy){ cloud.dirty = false; cloudSaveCfg(); clearTimeout(cloudTimer); if(!cloudChoice) cloudSetState('ok'); }
+    return;
+  }
+  cloudEditSeq++;
+  if(!cloud.dirty){ cloud.dirty = true; cloudSaveCfg(); }
+  if(!cloudChoice) cloudSetState('pending');
+  clearTimeout(cloudTimer);
+  cloudTimer = setTimeout(() => cloudPush(false), CLOUD_PUSH_DELAY);
+}
+
+async function cloudPush(force){
+  if(!cloudOn()) return;
+  if(cloudChoice && !force) return;   // waiting for the user to settle a conflict
+  if(cloudBusy){ clearTimeout(cloudTimer); cloudTimer = setTimeout(() => cloudPush(force), 1500); return; }
+  cloudBusy = true; clearTimeout(cloudRetry);
+  const seq = cloudEditSeq;
+  cloudSetState('saving');
+  try{
+    const data = cloudSnapshot();
+    const r = await cloudCall('save', { baseRev: cloud.rev, data, force: !!force });
+    if(r.ok){
+      cloud.rev = r.rev; cloud.lastSync = r.savedAt; cloud.lastBy = r.savedBy; cloud.snap = cloudHash(data);
+      cloud.dirty = cloudEditSeq !== seq;   // edits made while uploading go up next round
+      cloudSaveCfg();
+      cloudChoice = null;
+      cloudSetState(cloud.dirty ? 'pending' : 'ok');
+      if(cloud.dirty){ clearTimeout(cloudTimer); cloudTimer = setTimeout(() => cloudPush(false), CLOUD_PUSH_DELAY); }
+    } else if(r.conflict){
+      cloudChoice = { kind:'conflict', savedBy:r.savedBy, savedAt:r.savedAt };
+      cloudSetState('conflict');
+    } else {
+      cloudSetState('error', r.error || 'The cloud refused the save.');
+    }
+  }catch(e){
+    cloudFail(e);
+    if(e.offline) cloudRetry = setTimeout(() => { if(cloud.dirty) cloudPush(false); }, 30000);
+  }finally{ cloudBusy = false; }
+}
+
+function cloudAdopt(r){
+  cloudApply(JSON.parse(r.data));
+  cloud.rev = r.rev; cloud.dirty = false; cloud.lastSync = r.savedAt; cloud.lastBy = r.savedBy;
+  cloud.snap = cloudHash(cloudSnapshot());
+  cloudSaveCfg();
+}
+
+// Looks for a newer cloud copy and loads it. opts.manual = the user pressed a
+// button; opts.startup = page just opened (no one is typing yet).
+async function cloudCheck(opts){
+  opts = opts || {};
+  if(!cloudOn() || cloudBusy) return;
+  if(cloudChoice && !opts.manual) return;
+  if(!opts.manual && !opts.startup){
+    const a = document.activeElement;
+    if(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;   // never re-render under someone's typing
+  }
+  cloudLastCheck = Date.now();
+  cloudBusy = true;
+  try{
+    const m = await cloudCall('ping');
+    if(!m.ok){ cloudSetState('error', m.error); return; }
+
+    if(!m.rev){   // nothing in the cloud yet — this PC becomes the first copy, if it has anything
+      cloudBusy = false;
+      if(hasLocalData()){
+        await cloudPush(true);
+        if(cloudState === 'ok') toast("Cloud was empty — this PC's data is now the cloud copy.");
+      } else {
+        cloudSetState('ok');
+        if(opts.manual || opts.startup) toast('The cloud is empty. Restore a workspace backup (Cloud & backup tab) to fill it.');
+      }
+      return;
+    }
+
+    if(m.rev === cloud.rev){
+      if(cloud.dirty){ cloudBusy = false; await cloudPush(false); }
+      else cloudSetState('ok');
+      if(opts.manual && !opts.startup) toast('Already up to date with the cloud.');
+      return;
+    }
+
+    // The cloud has a newer copy than this PC last saw.
+    const neverSynced = !cloud.rev;
+    const hasLocal = hasLocalData();
+    if(hasLocal && neverSynced && !cloud.dirty){
+      // A browser that already holds exactly the cloud copy needs no choice.
+      const r0 = await cloudCall('load');
+      if(r0.ok && !r0.empty && cloudHash(r0.data) === cloudHash(cloudSnapshot())){
+        cloud.rev = r0.rev; cloud.lastSync = r0.savedAt; cloud.lastBy = r0.savedBy; cloud.snap = cloudHash(r0.data);
+        cloudSaveCfg(); cloudSetState('ok');
+        return;
+      }
+    }
+    if(hasLocal && (cloud.dirty || neverSynced)){
+      cloudChoice = { kind: neverSynced ? 'first' : 'conflict', savedBy:m.savedBy, savedAt:m.savedAt };
+      cloudSetState('conflict');
+      return;
+    }
+    const r = await cloudCall('load');
+    if(!r.ok) throw new Error(r.error || 'Could not load the cloud copy.');
+    if(r.empty){ cloudSetState('ok'); return; }
+    cloudAdopt(r);
+    cloudSetState('ok');
+    if(!neverSynced) toast(`Updated from the cloud — saved by ${r.savedBy || 'another PC'}, ${cloudTime(r.savedAt)}.`);
+  }catch(e){
+    cloudFail(e);
+  }finally{ cloudBusy = false; }
+}
+
+async function cloudResolve(how){
+  if(cloudBusy) return;
+  if(how === 'mine'){
+    cloudChoice = null;
+    await cloudPush(true);
+    if(cloudState === 'ok') toast("Cloud copy replaced with this PC's data. The previous copy is in Drive's versions folder.");
+    return;
+  }
+  cloudBusy = true;
+  try{
+    const r = await cloudCall('load');
+    if(!r.ok) throw new Error(r.error || 'Could not load the cloud copy.');
+    if(r.empty){ cloudBusy = false; cloudChoice = null; await cloudPush(true); return; }
+    const remote = JSON.parse(r.data);
+    if(how === 'combine'){
+      const merged = cloudCombine(remote);
+      cloudApply(merged);
+      cloud.rev = r.rev; cloud.dirty = true; cloud.snap = ''; cloudSaveCfg();
+      cloudChoice = null; cloudBusy = false;
+      await cloudPush(false);
+      toast('Combined: anything only this PC had is now in the cloud copy too.');
+    } else {
+      cloudAdopt(r);
+      cloudChoice = null;
+      cloudSetState('ok');
+      toast('This PC now uses the cloud copy.');
+    }
+  }catch(e){
+    cloudFail(e);
+  }finally{ cloudBusy = false; }
+}
+
+function cloudSetState(s, msg){ cloudState = s; cloudMsg = msg || ''; cloudRender(); }
+
+function cloudRender(){
+  const pill = $('cloudPill'), st = $('cloudStatus'), ban = $('cloudBanner');
+  if(!pill || !st || !ban) return;
+  if(!cloudOn()){
+    pill.style.display = 'none'; st.style.display = 'none'; ban.innerHTML = '';
+    return;
+  }
+  const last = cloud.lastSync ? ` ${cloudTime(cloud.lastSync)}` : '';
+  const look = {
+    ok:       ['ok',   `☁ Synced${last}`],
+    pending:  ['warn', '☁ Changes waiting…'],
+    saving:   ['warn', '☁ Saving…'],
+    offline:  ['bad',  '☁ Offline — kept on this PC'],
+    conflict: ['bad',  '☁ Needs your choice'],
+    error:    ['bad',  '☁ Sync error'],
+    off:      ['',     '☁ Connecting…']
+  }[cloudState] || ['', '☁ Connecting…'];
+  pill.className = 'chip ' + look[0];
+  pill.textContent = look[1] + ' · ' + cloud.user;
+  pill.title = cloudMsg || 'Logged in as ' + cloud.user + ' — click for details';
+  pill.style.display = '';
+
+  st.style.display = '';
+  st.className = 'note ' + ({ ok:'ok', pending:'warn', saving:'warn' }[cloudState] || (cloudState === 'off' ? '' : 'bad'));
+  st.innerHTML = cloudState === 'ok'
+    ? `Logged in as <b>${esc(cloud.user)}</b>. Last cloud save${last ? ':' + esc(last) : ''}${cloud.lastBy ? ' by ' + esc(cloud.lastBy) : ''}.`
+    : esc(cloudMsg || look[1]);
+
+  if(cloudChoice){
+    const who = esc(cloudChoice.savedBy || 'another PC'), when = esc(cloudTime(cloudChoice.savedAt));
+    const intro = cloudChoice.kind === 'first'
+      ? `<b>This browser already has its own data, and the cloud has a copy</b> saved by ${who}${when ? ' on ' + when : ''}. Choose which one to use — nothing is uploaded until you do.`
+      : `<b>Changes were made on this PC and by ${who}</b>${when ? ' (' + when + ')' : ''} since the last sync. Choose how to settle it — nothing is uploaded until you do.`;
+    ban.innerHTML = `<div class="note warn">${intro}
+      <div class="btnrow" style="margin-top:10px">
+        <button class="primary mini" data-cloud="combine">Combine both (recommended)</button>
+        <button class="mini" data-cloud="cloud">Use the cloud copy</button>
+        <button class="mini" data-cloud="mine">Use this PC's copy</button>
+      </div>
+      <div style="margin-top:8px;font-size:11.5px;line-height:1.55">
+        <b>Combine</b> — the cloud copy plus any companies, items, suppliers and log entries only this PC has. This PC's edits to rows already in the cloud are dropped.<br>
+        <b>Use the cloud copy</b> — this PC's unsynced changes are discarded.<br>
+        <b>Use this PC's copy</b> — the cloud copy is replaced. The old one stays in the <i>versions</i> folder in Google Drive.
+      </div></div>`;
+  } else if(cloudState === 'error'){
+    ban.innerHTML = `<div class="note bad"><b>Cloud sync stopped:</b> ${esc(cloudMsg)} Changes are still kept on this PC. See <b>Cloud &amp; backup</b>.</div>`;
+  } else {
+    ban.innerHTML = '';
+  }
+}
+
+function cloudFillForm(){
+  if(!$('c_user')) return;
+  $('c_user').value = cloud.user || '';
+  $('c_key').value = cloud.key || '';
+  if($('c_url')) $('c_url').value = cloud.url || '';
+  ['c_urlwrap','g_urlwrap'].forEach(id => { if($(id)) $(id).style.display = CLOUD_URL ? 'none' : ''; });
+  if($('g_url') && !$('g_url').value) $('g_url').value = cloud.url || '';
+}
+
+// Nothing is shown until this browser is logged in.
+function cloudGateCheck(msg){
+  const show = !cloudOn();
+  document.body.classList.toggle('gated', show);
+  if(!show) return;
+  if($('g_user') && !$('g_user').value) $('g_user').value = cloud.user || '';
+  $('gateStatus').innerHTML = msg ? `<div class="note bad">${esc(msg)}</div>` : '';
+  const f = (!CLOUD_URL && !$('g_url').value) ? $('g_url') : ($('g_user').value ? $('g_key') : $('g_user'));
+  setTimeout(() => f.focus(), 50);
+}
+
+// Every sync path reports failures through here. A refused login (password changed,
+// user removed) brings the login screen back; nothing on this PC is lost.
+function cloudFail(e){
+  if(e && e.auth){
+    clearTimeout(cloudTimer); clearTimeout(cloudRetry);
+    cloud.key = ''; cloudChoice = null; cloudSaveCfg();
+    cloudSetState('off');
+    cloudFillForm();
+    cloudGateCheck('Your login was refused: ' + e.message + ' Log in again. Nothing on this PC was lost.');
+    return;
+  }
+  cloudSetState(e && e.offline ? 'offline' : 'error', e && e.message);
+}
+
+// Tries the login before keeping it, so a mistyped password never replaces a login that works.
+async function cloudConnect(urlIn, userIn, key, report){
+  const url = CLOUD_URL || String(urlIn||'').trim();
+  const user = String(userIn||'').trim();
+  if(!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)){ report('The Web app URL should start with https://script.google.com/ and end with /exec.'); return false; }
+  if(!user){ report('Enter your user name.'); return false; }
+  if(!key){ report('Enter your password.'); return false; }
+  if(cloudBusy){ report('Cloud sync is busy. Try again in a moment.'); return false; }
+  const prev = Object.assign({}, cloud);
+  const sameStore = url === cloudUrl();
+  Object.assign(cloud, { url, user, key });
+  report('Checking the login…', 'info');
+  let m;
+  try{ m = await cloudCall('ping'); }
+  catch(e){ cloud = prev; report(e.message); return false; }
+  if(!m.ok){ cloud = prev; report(m.error || 'The cloud refused the login.'); return false; }
+  cloud.user = m.user || user;          // the name exactly as the Apps Script spells it
+  if(!sameStore){ cloud.rev = ''; cloud.lastSync = ''; cloud.lastBy = ''; cloud.dirty = false; cloud.snap = ''; }
+  cloudChoice = null;
+  cloudSaveCfg();
+  cloudSetState('off', 'Connecting…');
+  await cloudCheck({ manual:true, startup:true });
+  return true;
+}
+
+function cloudStart(){
+  cloudLoadCfg();
+  cloudFillForm();
+  cloudRender();
+  cloudGateCheck();
+
+  $('cloudBanner').addEventListener('click', e => {
+    const b = e.target.closest('[data-cloud]');
+    if(b) cloudResolve(b.dataset.cloud);
+  });
+  $('cloudPill').addEventListener('click', () => {
+    const t = document.querySelector('.tab[data-tab="cloud"]');
+    if(t) t.click();
+  });
+  $('cloudConnectBtn').addEventListener('click', async () => {
+    const st = $('cloudStatus');
+    const report = (msg, kind) => { st.style.display = ''; st.className = 'note ' + (kind === 'info' ? '' : 'bad'); st.textContent = msg; };
+    const ok = await cloudConnect($('c_url').value, $('c_user').value, $('c_key').value, report);
+    if(ok) toast('Logged in as ' + cloud.user + '.');
+  });
+  $('gateConnectBtn').addEventListener('click', async () => {
+    const st = $('gateStatus');
+    const report = (msg, kind) => { st.innerHTML = `<div class="note ${kind === 'info' ? '' : 'bad'}">${esc(msg)}</div>`; };
+    const btn = $('gateConnectBtn'); btn.disabled = true;
+    const ok = await cloudConnect($('g_url').value, $('g_user').value, $('g_key').value, report);
+    btn.disabled = false;
+    if(ok){ st.innerHTML = ''; $('g_key').value = ''; cloudFillForm(); cloudGateCheck(); toast('Logged in as ' + cloud.user + '.'); }
+  });
+  $('g_key').addEventListener('keydown', e => { if(e.key === 'Enter') $('gateConnectBtn').click(); });
+  $('g_user').addEventListener('keydown', e => { if(e.key === 'Enter') $('g_key').focus(); });
+
+  $('cloudPushBtn').addEventListener('click', () => { if(cloudOn()) cloudPush(false); });
+  $('cloudPullBtn').addEventListener('click', () => { if(cloudOn()) cloudCheck({ manual:true }); });
+
+  const logOut = (wipe) => {
+    clearTimeout(cloudTimer); clearTimeout(cloudRetry);
+    cloud = wipe ? { url: cloud.url, user:'', key:'', rev:'', dirty:false, lastSync:'', lastBy:'', snap:'' }
+                 : Object.assign({}, cloud, { key:'' });
+    cloudChoice = null;
+    if(wipe){
+      try{ localStorage.removeItem(STORE_KEY); }catch(e){}
+      db = repair(blankWorkspace()); hydrate(); selectedItems.clear(); supLines = [];
+      $('pasteBox').value = ''; $('readNote').innerHTML = '';
+      renderAll();
+    }
+    cloudSaveCfg(); cloudFillForm(); cloudSetState('off');
+    cloudGateCheck();
+    toast(wipe ? 'Logged out. Nothing is left in this browser.' : 'Logged out.');
+  };
+  $('cloudDisconnectBtn').addEventListener('click', () => {
+    if(!cloudOn()) return;
+    const pending = cloud.dirty ? ' Changes not yet in the cloud stay on this PC and go up after the next login.' : '';
+    askConfirm('Log out of this browser? Its copy of the data stays here, hidden until someone logs in.' + pending, () => logOut(false));
+  });
+  $('cloudWipeBtn').addEventListener('click', () => {
+    if(!cloudOn()) return;
+    const warn = cloud.dirty ? ' Some changes have NOT reached the cloud yet and will be lost — press "Save to cloud now" first.' : '';
+    askConfirm('Log out and delete every company, item and setting from this browser? The cloud copy is not touched.' + warn, () => logOut(true));
+  });
+
+  window.addEventListener('focus', () => { if(Date.now() - cloudLastCheck > 15000) cloudCheck(); });
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && Date.now() - cloudLastCheck > 15000) cloudCheck();
+  });
+  setInterval(() => { if(document.visibilityState === 'visible') cloudCheck(); }, CLOUD_POLL_MS);
+  window.addEventListener('online', () => { if(cloud.dirty) cloudPush(false); else cloudCheck(); });
+  window.addEventListener('beforeunload', e => {
+    if(cloudOn() && (cloud.dirty || cloudBusy)){ e.preventDefault(); e.returnValue = ''; }
+  });
+
+  if(cloudOn()) cloudCheck({ startup:true });
+}
+
+/* ============================ LOOKUPS ============================ */
+/* Normalises the many ways the same spec gets written down, so a code off a
+   supplier narration can meet a code typed into the master halfway. */
+function normCode(s){
+  let v = String(s||'').toLowerCase();
+  v = v.replace(/[\u2018\u2019\u201c\u201d]/g, "'").replace(/[\u00d7\u2715]/g,'x');
+  v = v.replace(/\bhalf\s*inch\b/g,'1/2x1/2');
+  v = v.replace(/(\d)\s*\/\s*(\d)/g,'$1/$2');        // 1 / 2 -> 1/2
+  v = v.replace(/(^|[^0-9])0?\.5(?![0-9])/g,'$11/2'); // .5 and 0.5 -> 1/2, but not the .5 in 2.5
+  v = v.replace(/\s*x\s*/g,'x');                      // 1 x 1 -> 1x1
+  v = v.replace(/\blit\b/g,'lite').replace(/\bhvy\b/g,'heavy').replace(/\bblu\b/g,'blue');
+  v = v.replace(/\bgauge\b/g,'g').replace(/(\d)\s*g(?=x|\s|$|[^a-z0-9])/g,'$1');
+  v = v.replace(/\bfeet\b/g,'ft').replace(/'/g,'ft');
+  v = v.replace(/[^a-z0-9/.]+/g,' ').replace(/\s+/g,' ').trim();
+  return v;
+}
+function itemVariants(it){
+  return String(it.variants||'').split(',').map(v => v.trim()).filter(Boolean);
+}
+/* Tiered: exact code, then a listed variant, then the Tally name, then the same
+   four again through normCode. Blank codes and names are filtered out of every
+   pool first — an empty string prefix-matches everything and would hijack the
+   first unmatched code it met. */
+function findItem(code){
+  const t0 = tight(code);
+  if(!t0) return null;
+  const pool = items.filter(i => tight(i.code) || tight(i.name));
+
+  let hit = pool.find(i => tight(i.code) === t0);
+  if(hit) return hit;
+  hit = pool.find(i => itemVariants(i).some(v => tight(v) === t0));
+  if(hit) return hit;
+  hit = pool.find(i => tight(i.name) === t0);
+  if(hit) return hit;
+
+  const n0 = normCode(code);
+  if(!n0) return null;
+  hit = pool.find(i => normCode(i.code) === n0);
+  if(hit) return hit;
+  hit = pool.find(i => itemVariants(i).some(v => normCode(v) === n0));
+  if(hit) return hit;
+  hit = pool.find(i => normCode(i.name) === n0);
+  return hit || null;
+}
+/* A common-name item is one stock item for every width, so its code carries no
+   width while the narration's does — "GIWM" in the master against "GIWMx5" on
+   the bill. Strip the trailing width and retry, but only accept the result if
+   that item really is a size-at-billing one, so an ordinary code can never be
+   widened into matching the wrong item. */
+function findItemForVariant(code){
+  const direct = findItem(code);
+  if(direct) return direct;
+  const s = String(code||'').trim();
+  const toks = s.split(/\s+/);
+  const stripped = toks[0].replace(/x\d+(?:\.\d+)?$/i,'');
+  if(!stripped || stripped === toks[0]) return null;
+  const base = [stripped].concat(toks.slice(1)).join(' ');
+  const hit = findItem(base);
+  if(!hit) return null;
+  const rl = rules[hit.cat];
+  return (rl && rl.sizeAtBilling) ? hit : null;
+}
+
+/* Records a supplier code against an item by adding it to that item's variants,
+   which is the one place alternate spellings now live. */
+function addVariant(item, code){
+  const have = itemVariants(item);
+  if(have.some(v => tight(v) === tight(code))) return false;
+  have.push(code.trim());
+  item.variants = have.join(', ');
+  return true;
+}
+function isLocal(){
+  const s = activeSupplier();
+  return tight(s ? s.state : '') === tight(settings.state);
+}
+function purchLedgerFor(gstRate){
+  const local = isLocal();
+  const r5 = Math.abs(Number(gstRate) - 5) < 0.01;
+  if(r5) return local ? settings.purchLocal5 : settings.purchInter5;
+  return local ? settings.purchLocal18 : settings.purchInter18;
+}
+/* the opening pattern at the front of a shorthand code: 1x1, 1x1/2, 25x25, 2x2 */
+function openingOf(code){
+  const first = String(code||'').trim().split(/\s+/)[0];
+  const parts = first.split(/x/i);
+  if(parts.length < 2) return null;
+  return (parts[0] + 'x' + parts[1]).toLowerCase();
+}
+/* best guesses for a code the master doesn't know yet */
+function suggestFor(code, desc, widthFt){
+  const mm = (String(desc||'').match(/(\d+(?:\.\d+)?)\s*mm/i)||[])[1];
+  const open = openingOf(code);
+  const ct = tight(code);
+  const scored = items.map(it => {
+    let s = 0;
+    if(mm){ const re = new RegExp('(^|[^\\d.])' + mm.replace('.','\\.') + '\\s*mm', 'i'); if(re.test(it.name)) s += 5; }
+    if(widthFt != null && Number(it.h) === Number(widthFt)) s += 3;
+    if(open && openingOf(it.code) === open) s += 4;
+    const a = ct, b = tight(it.code);
+    let common = 0; for(const ch of new Set(a)) if(b.includes(ch)) common++;
+    s += 1.5 * (common / Math.max(1, new Set(a).size));
+    return { it, s };
+  }).sort((x,y) => y.s - x.s);
+  return scored.filter(x => x.s >= 5).slice(0,6).map(x => x.it);
+}
+
+/* ============================ NARRATION ============================ */
+/* "1x1x8x5-15,4-5"      -> 15 of 1x1x8x5, 5 of 1x1x8x4
+   "1x1x12x5 4mm lite-61" -> 61 of 1x1x12x5 4mm lite
+   "25x25x2.2mmx5-11,4-4,3-3" -> 11 of ...x5, 4 of ...x4, 3 of ...x3   */
+function parseNarration(narr){
+  const s = String(narr||'').trim();
+  if(!s) return null;
+  const cut = s.indexOf('-');
+  if(cut < 0) return null;
+  const base = s.slice(0, cut).trim();
+  const tail = s.slice(cut+1).trim();
+  if(!base || !tail) return null;
+
+  const parts = tail.split(',').map(p => p.trim()).filter(Boolean);
+  const out = [];
+  parts.forEach((p, i) => {
+    if(i === 0){
+      const c = num(p);
+      if(c != null) out.push({ code: base, count: c, width: widthOf(base) });
+      return;
+    }
+    const m = p.match(/^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/);
+    if(!m) return;
+    const w = parseFloat(m[1]), c = parseFloat(m[2]);
+    out.push({ code: swapWidth(base, w), count: c, width: w });
+  });
+  return out.length ? out : null;
+}
+/* The width sits at the end of the spec token, but that token isn't always the
+   first word — "Gi sheet 75x75x2.5mmx10x5" and "Gi Ch 65x65x3mmx5ft" both carry
+   a product word in front of it. So find the token ending in x<number>,
+   optionally followed by ft, taking the last one so trailing words like
+   "4mm lite" are left alone. */
+const WIDTH_TOK = /x(\d+(?:\.\d+)?)\s*(?:ft|')?$/i;
+function dimTokenIndex(base){
+  const toks = String(base||'').trim().split(/\s+/);
+  for(let i = toks.length - 1; i >= 0; i--){
+    if(WIDTH_TOK.test(toks[i])) return i;
+  }
+  return -1;
+}
+function widthOf(base){
+  const i = dimTokenIndex(base);
+  if(i < 0) return null;
+  const m = String(base||'').trim().split(/\s+/)[i].match(WIDTH_TOK);
+  return m ? parseFloat(m[1]) : null;
+}
+function swapWidth(base, w){
+  const toks = String(base).trim().split(/\s+/);
+  const i = dimTokenIndex(base);
+  if(i < 0) return base;
+  toks[i] = toks[i].replace(WIDTH_TOK, 'x' + w);
+  return toks.join(' ');
+}
+
+/* ============================ SPLIT ============================ */
+/* weight-priced items (wire, nails) don't split — the kilo straight off the
+   bill is the unit, at one blended rate. Shared by both the description-led
+   match and the narration-led one below. */
+function dimlessSplit(amount, kgVal, code, item, rl){
+  const out = { rows:[], unmapped:[], issue:null, totalSqft:0, perSqft:null, residue:0 };
+  const kg = num(kgVal);
+  if(kg == null){ out.issue = 'This is a weight item but the bill has no KG on the line.'; return out; }
+  const rate = r2(amount / kg);
+  out.rows = [{ code, item, qty: kg, unit:'KG', rate, amount: r2(rate*kg),
+                gst: item.gst != null ? Number(item.gst) : rl.tax, area:null,
+                basis: `weight item — ${qtyFmt(kg)} kg straight off the bill` }];
+  out.residue = r2(amount - out.rows[0].amount);
+  if(out.residue !== 0){ out.rows[0].amount = r2(out.rows[0].amount + out.residue); }
+  return out;
+}
+function splitLine(sl){
+  const amount = num(sl.amount);
+  const out = { rows:[], unmapped:[], issue:null, totalSqft:0, perSqft:null, residue:0 };
+  if(amount == null){ out.issue = 'No amount on this line.'; return out; }
+
+  /* A weight-priced item — loose wire, nails, anything sold straight by the
+     kilo — is what the bill's own description names it ("GI WIRE 3MM"), and
+     its narration is often nothing but a bare bundle count ("2") where a
+     dimension code would sit for a sized item. Try the description against
+     the item master before ever asking the narration to look like a
+     dimension code, so these lines never need one. */
+  const descItem = sl.desc ? findItem(sl.desc) : null;
+  const descRule = descItem ? (rules[descItem.cat] || rules.flat) : null;
+  if(descItem && descRule && !descRule.dim){
+    return dimlessSplit(amount, sl.kg, sl.desc, descItem, descRule);
+  }
+
+  const variants = parseNarration(sl.narration);
+  if(!variants){
+    /* Not a dimension code and not a description already in the master —
+       offer the same "map this" flow used for an unknown dimension code,
+       keyed by the description instead, so a new wire/nail item is one pick
+       away rather than a dead end. */
+    if(!descItem && sl.desc){
+      out.unmapped.push({ code: sl.desc, width: null });
+      out.issue = 'Some codes are not in the item master yet.';
+      return out;
+    }
+    out.issue = 'Could not read the narration. Expected something like 1x1x8x5-15,4-5';
+    return out;
+  }
+
+  const resolved = variants.map(v => ({ ...v, item: findItemForVariant(v.code) }));
+  resolved.forEach(v => { if(!v.item) out.unmapped.push({ code:v.code, width:v.width }); });
+  if(out.unmapped.length) { out.issue = 'Some codes are not in the item master yet.'; out.rows = resolved; return out; }
+
+  /* weight-priced items reached by a narration that did parse (an old-style
+     dash-coded alias, say) still don't split */
+  const dimless = resolved.filter(v => { const rl = rules[v.item.cat] || rules.flat; return !rl.dim; });
+  if(dimless.length){
+    const it = resolved[0].item;
+    return dimlessSplit(amount, sl.kg, resolved[0].code, it, rules[it.cat] || rules.flat);
+  }
+
+  /* area split */
+  let bad = null;
+  const missingDims = [];
+  resolved.forEach(v => {
+    const rl = rules[v.item.cat] || rules.flat;
+    const ov = (sl.dims && sl.dims[v.code]) || {};
+
+    /* A generic item is one Tally stock item covering many specs — "GI Weldmesh"
+       rather than one item per width — so it carries no fixed height. The width
+       is read off the narration and the length falls back to the item's own or
+       the category default, and both stay editable on the bill in case the
+       narration was written oddly. Everything is still one row per width; only
+       the name they share is common. */
+    const h = ov.h != null ? Number(ov.h)
+            : (rl.sizeAtBilling && v.width != null ? Number(v.width)
+            : (v.item.h != null ? Number(v.item.h)
+            : (v.width != null ? Number(v.width) : null)));
+    const l = ov.l != null ? Number(ov.l)
+            : (v.item.l != null ? Number(v.item.l)
+            : (rl.lengthFt != null ? Number(rl.lengthFt) : null));
+
+    if(h == null || !(h > 0) || l == null || !(l > 0)){
+      if(rl.sizeAtBilling) missingDims.push(v.code);
+      else bad = bad || `${v.item.name} has no height or length — the sq.ft split needs both.`;
+      return;
+    }
+    v.area = h * l; v.h = h; v.l = l;
+    v.sizeAtBilling = !!rl.sizeAtBilling;
+    v.hFromOverride = ov.h != null; v.lFromOverride = ov.l != null;
+  });
+  if(missingDims.length){
+    out.issue = 'This line needs a size before it can be split.';
+    out.needDims = missingDims;
+    out.rows = resolved;
+    return out;
+  }
+  if(bad){ out.issue = bad; out.rows = resolved; return out; }
+
+  const totalSqft = resolved.reduce((s,v) => s + v.count * v.area, 0);
+  if(!(totalSqft > 0)){ out.issue = 'Total sq.ft on this line works out to zero.'; return out; }
+  const perSqft = amount / totalSqft;
+  out.totalSqft = totalSqft; out.perSqft = perSqft;
+
+  out.rows = resolved.map(v => {
+    const rl = rules[v.item.cat] || rules.flat;
+    /* Two ways to book the same split. EKM buys in pieces and rolls, so qty is
+       the count and the rate is what one piece of that width costs. CLT and KNR
+       book weldmesh by area, so qty is the sq.ft and the rate is the per-sq.ft
+       rate itself — identical on every width, which is the whole point.
+
+       The order of operations differs between them, and it matters. For counts,
+       the rate is rounded first and the amount follows, which is what reproduces
+       the supplier's own figures to the paisa. For sq.ft, a rate rounded first
+       gets multiplied by thousands of sq.ft and the error multiplies with it, so
+       the amount is allocated from the area and the rate derived back from it. */
+    const bySqft = rl.billBy === 'sqft';
+    const dp = (rl.decimals == null ? (bySqft ? 6 : 2) : Number(rl.decimals));
+    const lineSqft = v.count * v.area;
+    const qty  = bySqft ? r2(lineSqft) : v.count;
+    let rate, amt;
+    if(bySqft){
+      amt  = r2(perSqft * lineSqft);
+      rate = roundDp(qty ? amt / qty : 0, dp);
+    } else {
+      rate = roundDp(perSqft * v.area, dp);
+      amt  = r2(rate * v.count);
+    }
+    return {
+      code: v.code, item: v.item, qty, count: v.count, bySqft, dp,
+      unit: bySqft ? (rl.unit || 'SQFT') : (v.item.unit || rl.unit),
+      rate, amount: amt, area: v.area, h:v.h, l:v.l,
+      sizeAtBilling: !!v.sizeAtBilling, hFromOverride: !!v.hFromOverride, lFromOverride: !!v.lFromOverride,
+      gst: v.item.gst != null ? Number(v.item.gst) : rl.tax,
+      basis: `${qtyFmt(v.count)} × ${v.h}ft × ${v.l}ft = ${qtyFmt(r2(lineSqft))} sq.ft @ ₹${roundDp(perSqft, Math.max(2,dp))}`
+    };
+  });
+
+  const sum = r2(out.rows.reduce((s,r) => s + r.amount, 0));
+  out.residue = r2(amount - sum);
+  if(out.residue !== 0 && tieMode === 'exact'){
+    let big = out.rows[0];
+    out.rows.forEach(r => { if(r.amount > big.amount) big = r; });
+    big.amount = r2(big.amount + out.residue);
+    big.rate = roundDp(big.amount / big.qty, Math.max(4, big.dp || 4));
+    big.carried = out.residue;
+    out.residue = 0;
+  }
+
+  /* Tally recomputes amount as rate x qty. With a per-sq.ft rate and a few
+     thousand sq.ft on a row, a rate rounded too short drifts by more than a
+     paisa, so surface it rather than let it turn up in the ledger. */
+  out.drift = 0;
+  out.rows.forEach(r => { const d = Math.abs(r.rate * r.qty - r.amount); if(d > out.drift) out.drift = d; });
+  return out;
+}
+
+function computeAll(){
+  supLines.forEach(sl => { sl.split = splitLine(sl); });
+}
+function allRows(){
+  const rows = [];
+  supLines.forEach((sl,i) => (sl.split && !sl.split.issue ? sl.split.rows : []).forEach(r => rows.push({ ...r, sl:i })));
+  return rows;
+}
+function totals(){
+  const rows = allRows();
+  const taxable = r2(rows.reduce((s,r) => s + r.amount, 0));
+  const local = isLocal();
+
+  /* Tax is worked out per row and rounded per row, which is what Tally does and
+     what Best Bond's own totals come out to. Halving a single 18% figure lands a
+     couple of paise short and the bill then won't reconcile in GSTR-2B. */
+  let cCalc = 0, sCalc = 0, iCalc = 0;
+  rows.forEach(r => {
+    const halfRate = r.gst / 2 / 100;
+    if(local){ cCalc += rp(r.amount * halfRate); sCalc += rp(r.amount * halfRate); }
+    else     { iCalc += rp(r.amount * (r.gst / 100)); }
+  });
+  cCalc = rp(cCalc); sCalc = rp(sCalc); iCalc = rp(iCalc);
+
+  /* The supplier's invoice is the truth for input credit, so a stated figure wins
+     over ours. What we compute stays visible next to it as the check. */
+  const cBill = num($('h_cgst').value), sBill = num($('h_sgst').value);
+  const cgst = local ? (cBill != null ? cBill : cCalc) : 0;
+  const sgst = local ? (sBill != null ? sBill : sCalc) : 0;
+  const igst = local ? 0 : iCalc;
+  const taxTotal = r2(cgst + sgst + igst);
+
+  const beforeRound = r2(taxable + taxTotal);
+  const stated = num($('h_grand').value);
+  const grand = stated != null ? stated : Math.round(beforeRound);
+  const roundOff = r2(grand - beforeRound);
+  return { rows, taxable, taxTotal, cgst, sgst, igst, cCalc, sCalc, iCalc, local,
+           beforeRound, grand, roundOff, usingBillTax: local && (cBill != null || sBill != null) };
+}
+
+/* ============================ PDF READING ============================
+   Best Bond's invoices are ordinary text PDFs — no scanning, no OCR needed —
+   so the text is already in the file and only has to be dug out. Doing that
+   here, rather than through a PDF library, keeps the tool a single file that
+   works with no internet and sends no bill to any outside service.
+
+   Three steps: inflate the compressed streams (the browser's own
+   DecompressionStream does this), walk the text-drawing operators to recover
+   each fragment and where it sits on the page, then group fragments back into
+   lines by their vertical position. What comes out is the same text a
+   copy-paste would give, so it goes straight into the reader the paste box
+   already uses. */
+
+function latin1(bytes){
+  let s = '', CH = 8192;
+  for(let i = 0; i < bytes.length; i += CH){
+    s += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  }
+  return s;
+}
+
+async function inflate(bytes){
+  // FlateDecode is zlib-wrapped; a few writers emit raw deflate, so try both.
+  for(const fmt of ['deflate','deflate-raw']){
+    try{
+      const ds = new DecompressionStream(fmt);
+      const out = new Response(new Blob([bytes]).stream().pipeThrough(ds));
+      return new Uint8Array(await out.arrayBuffer());
+    }catch(e){ /* try the next format */ }
+  }
+  return null;
+}
+
+/* Pulls out every stream that inflates and carries text operators. /Length is
+   often an indirect reference, so the end is found by scanning for endstream
+   rather than trusting the dictionary. */
+async function pdfTextStreams(buf){
+  const bytes = new Uint8Array(buf);
+  const raw = latin1(bytes);
+  const out = [];
+  const re = /stream\r?\n/g;
+  let m;
+  while((m = re.exec(raw)) !== null){
+    const start = m.index + m[0].length;
+    const end = raw.indexOf('endstream', start);
+    if(end < 0) continue;
+    re.lastIndex = end;
+    const slice = bytes.subarray(start, end);
+    if(!slice.length) continue;
+    let d = await inflate(slice);
+    let txt;
+    if(d) txt = latin1(d);
+    else txt = raw.slice(start, end);          // some streams are not compressed
+    if(txt.indexOf('Tj') >= 0 || txt.indexOf('TJ') >= 0) out.push(txt);
+  }
+  return out;
+}
+
+function matMul(m, n){
+  return [ m[0]*n[0]+m[1]*n[2],            m[0]*n[1]+m[1]*n[3],
+           m[2]*n[0]+m[3]*n[2],            m[2]*n[1]+m[3]*n[3],
+           m[4]*n[0]+m[5]*n[2]+n[4],       m[4]*n[1]+m[5]*n[3]+n[5] ];
+}
+function pdfUnescape(s){
+  return s.replace(/\\([0-7]{1,3})/g, (_,o) => String.fromCharCode(parseInt(o,8)))
+          .replace(/\\(.)/g, (_,c) => ({ n:'\n', r:'\r', t:'\t', b:'\b', f:'\f' }[c] || c));
+}
+
+const PDF_TOK = /\((?:[^()\\]|\\[\s\S])*\)|\[(?:[^\[\]\\]|\\[\s\S])*\]|\/[^\s\/\[\]()<>]+|<[0-9A-Fa-f\s]*>|-?\d*\.?\d+|[A-Za-z'"*]+/g;
+
+/* Walks one content stream and returns each drawn fragment with the page
+   position it was drawn at. */
+function pdfFragments(txt){
+  const frags = [];
+  let cm = [1,0,0,1,0,0], stack = [];
+  let tm = [1,0,0,1,0,0], tlm = tm.slice(), leading = 0, fs = 1;
+  let ops = [];
+  PDF_TOK.lastIndex = 0;
+  let t;
+  while((t = PDF_TOK.exec(txt)) !== null){
+    const s = t[0], c = s[0];
+    if(c === '(' || c === '[' || c === '<'){ ops.push(s); continue; }
+    if(c === '/'){ ops.push(s); continue; }
+    if((c >= '0' && c <= '9') || c === '-' || c === '.'){ ops.push(parseFloat(s)); continue; }
+
+    const num = i => { const v = ops[ops.length + i]; return typeof v === 'number' ? v : 0; };
+    switch(s){
+      case 'q': stack.push(cm.slice()); break;
+      case 'Q': cm = stack.length ? stack.pop() : [1,0,0,1,0,0]; break;
+      case 'cm': if(ops.length >= 6) cm = matMul([num(-6),num(-5),num(-4),num(-3),num(-2),num(-1)], cm); break;
+      case 'BT': tm = [1,0,0,1,0,0]; tlm = tm.slice(); break;
+      case 'Tf': if(ops.length >= 1) fs = num(-1); break;
+      case 'TL': if(ops.length >= 1) leading = num(-1); break;
+      case 'Tm': if(ops.length >= 6){ tm = [num(-6),num(-5),num(-4),num(-3),num(-2),num(-1)]; tlm = tm.slice(); } break;
+      case 'Td': case 'TD': {
+        if(ops.length >= 2){
+          const tx = num(-2), ty = num(-1);
+          if(s === 'TD') leading = -ty;
+          tlm = matMul([1,0,0,1,tx,ty], tlm); tm = tlm.slice();
+        }
+        break;
+      }
+      case 'T*': tlm = matMul([1,0,0,1,0,-leading], tlm); tm = tlm.slice(); break;
+      case 'ID': {
+        // Inline image: binary data follows and must not be tokenised.
+        const ei = txt.indexOf('EI', PDF_TOK.lastIndex);
+        PDF_TOK.lastIndex = ei < 0 ? txt.length : ei + 2;
+        break;
+      }
+      case 'Tj': case 'TJ': case "'": case '"': {
+        if(s === "'" || s === '"'){ tlm = matMul([1,0,0,1,0,-leading], tlm); tm = tlm.slice(); }
+        const last = ops[ops.length - 1];
+        let str = '';
+        if(typeof last === 'string'){
+          if(last[0] === '('){ str = pdfUnescape(last.slice(1,-1)); }
+          else if(last[0] === '['){
+            const inner = last.slice(1,-1);
+            const re = /\((?:[^()\\]|\\[\s\S])*\)/g;
+            let p; while((p = re.exec(inner)) !== null) str += pdfUnescape(p[0].slice(1,-1));
+          }
+        }
+        if(str.trim()){
+          const trm = matMul(tm, cm);
+          const size = Math.abs(fs * (trm[0] || trm[1] || 1)) || 1;
+          frags.push({ y: Math.round(trm[5]*10)/10, x: Math.round(trm[4]*10)/10, s: str, size });
+        }
+        break;
+      }
+    }
+    ops = [];
+  }
+  return frags;
+}
+
+/* Fragments carry no line breaks, so lines are rebuilt from vertical position
+   and a space is put back wherever the gap is wider than the font would make. */
+function pdfLines(frags){
+  frags.sort((a,b) => (b.y - a.y) || (a.x - b.x));
+  const lines = [];
+  let cur = [], cy = null;
+  frags.forEach(f => {
+    if(cy !== null && Math.abs(f.y - cy) > 2.0){ lines.push(cur); cur = []; }
+    cur.push(f); cy = f.y;
+  });
+  if(cur.length) lines.push(cur);
+  return lines.map(ln => {
+    ln.sort((a,b) => a.x - b.x);
+    let s = '', end = null;
+    ln.forEach(f => {
+      if(end !== null && f.x - end > f.size * 0.28) s += ' ';
+      s += f.s;
+      end = f.x + f.s.length * f.size * 0.5;
+    });
+    return s.replace(/\s+/g,' ').trim();
+  }).filter(Boolean);
+}
+
+async function pdfToText(buf){
+  if(typeof DecompressionStream === 'undefined'){
+    throw new Error('This browser cannot unpack PDF files. Copy the goods table out of the PDF and paste it instead.');
+  }
+  const streams = await pdfTextStreams(buf);
+  if(!streams.length){
+    throw new Error("No text found in that PDF — it may be a scan or a photo rather than a generated invoice. Copy the goods table out of it and paste it instead.");
+  }
+  const out = [];
+  streams.forEach(st => { pdfLines(pdfFragments(st)).forEach(l => out.push(l)); });
+  return out.join('\n');
+}
+
+/* ============================ PARSE PASTED BILL ============================ */
+/* Handles bills copy-pasted in more than one shape:
+   - two columns orders: "HSN, Qty, Rate, Amount" (original PDF-page order) or
+     "Amount, Rate, Qty, HSN" (some copy-paste tools reorder columns)
+   - narration either on its own line, or run straight into the same line
+   - the whole table sometimes collapses onto a single line with no breaks at all
+   A token scan handles all three: whitespace (including newlines) is flattened,
+   then read item by item. The HSN's position relative to the three money figures
+   tells us which column order we're looking at. */
+const STOP_WORDS = /^(CGST|SGST|IGST|Round|Total|Chargeable|Declaration|Authorised|Signatory)$/i;
+
+function isMoneyTok(t){ return /^[\d,]+\.\d{2}$/.test(t); }
+function isHsnTok(t){ return /^\d{6,8}$/.test(t); }
+function isUnitTok(t){ return /^(KG|PCS|ROLL|NOS)$/i.test(t); }
+function isSlStart(t, next){ return /^\d{1,3}$/.test(t) && !!next && /^[A-Za-z]/.test(next); }
+
+function readPaste(text){
+  const toks = String(text||'').split(/\s+/).filter(Boolean);
+  const out = [];
+  let i = 0;
+  const n = toks.length;
+
+  while(i < n){
+    if(STOP_WORDS.test(toks[i])) break;               // hit the tax/total footer — done
+    if(!isSlStart(toks[i], toks[i+1])){ i++; continue; }  // skip stray text until a real row starts
+
+    const sl = toks[i]; i++;
+    const descParts = [];
+    while(i < n && !isMoneyTok(toks[i]) && !isHsnTok(toks[i])){
+      if(STOP_WORDS.test(toks[i])) { i = n; break; }
+      descParts.push(toks[i]); i++;
+    }
+    if(i >= n) break;
+
+    const moneyVals = [];   // in the order they appear
+    let hsn = '', hsnSeenAt = -1;
+    let guard = 0;
+    while(i < n && moneyVals.length < 3 && guard < 12){
+      guard++;
+      if(isMoneyTok(toks[i])){
+        const val = num(toks[i]); i++;
+        let unit = null;
+        if(i < n && isUnitTok(toks[i])){ unit = toks[i].toUpperCase(); i++; }
+        moneyVals.push({ val, unit });
+        continue;
+      }
+      if(isHsnTok(toks[i]) && !hsn){ hsn = toks[i]; hsnSeenAt = moneyVals.length; i++; continue; }
+      if(isUnitTok(toks[i])){ i++; continue; }   // stray unit with nothing to attach to
+      break;   // something unexpected — stop scanning fields for this row
+    }
+    if(moneyVals.length < 3){ continue; }   // couldn't read this row cleanly, move on
+
+    // HSN read before any money value  -> column order is  Qty, Rate, Amount
+    // HSN read after all three values  -> column order is  Amount, Rate, Qty
+    let qty, rate, amount, qtyUnit;
+    if(hsnSeenAt === 0){
+      qty = moneyVals[0]; rate = moneyVals[1]; amount = moneyVals[2];
+    } else {
+      amount = moneyVals[0]; rate = moneyVals[1]; qty = moneyVals[2];
+    }
+    // catch a genuinely unrecognised order rather than silently mis-splitting a bill
+    if(Math.abs(rate.val * qty.val - amount.val) > Math.max(0.05, amount.val * 0.001)){
+      // still keep the row — the on-screen residue check will flag it — but don't guess further
+    }
+    qtyUnit = qty.unit || amount.unit || rate.unit || 'KG';
+
+    // if the HSN never showed up (rare, malformed row), grab a trailing bare digit string if present
+    if(!hsn && i < n && isHsnTok(toks[i])){ hsn = toks[i]; i++; }
+
+    const narrParts = [];
+    while(i < n){
+      if(isSlStart(toks[i], toks[i+1])) break;   // next item begins
+      if(STOP_WORDS.test(toks[i])) break;         // ran into the footer
+      /* Some bills print a bare taxable subtotal under the last item, before
+         the CGST line. It sits exactly where a narration would and would
+         otherwise be swallowed by the last item's. A narration never carries a
+         comma-grouped money figure, so that shape ends the scan. */
+      if(/^\d{1,3}(,\d{2,3})+\.\d{2}$/.test(toks[i])) break;
+      narrParts.push(toks[i]); i++;
+    }
+
+    out.push({
+      sl, desc: descParts.join(' ').trim(), hsn,
+      kg: qty.val, unit: qtyUnit, rate: rate.val, amount: amount.val,
+      narration: narrParts.join(' ').trim()
+    });
+  }
+  return out;
+}
+/* The document being read is the authority on its own header, so each read
+   clears these fields and refills them from what it finds. Carrying a value
+   over would be silent and wrong: read a second bill and the first bill's CGST
+   would ride along onto the voucher. A figure the document doesn't state is
+   left blank rather than guessed, so it is visibly missing. */
+function readHeaderBits(text){
+  const t = String(text||'');
+  const num2 = s => s.replace(/,/g,'');
+  ['h_invno','h_date','h_cgst','h_sgst','h_round','h_grand','h_kg'].forEach(k => { $(k).value = ''; });
+
+  const inv = t.match(/Invoice\s*No\.?\s*:?\s*([A-Za-z0-9][A-Za-z0-9\/\-]*)/i);
+  if(inv) $('h_invno').value = inv[1];
+
+  const dt = t.match(/Dated\s*:?\s*(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/i);
+  if(dt){
+    const M = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+    const mm = M[dt[2].toLowerCase()];
+    let yy = dt[3]; if(yy.length === 2) yy = '20' + yy;
+    if(mm) $('h_date').value = `${yy}-${mm}-${String(dt[1]).padStart(2,'0')}`;
+  }
+  if(!$('h_date').value) $('h_date').value = todayISO();
+
+  const cg = t.match(/\bCGST\b[^\d\n]*([\d,]+\.\d{2})/i);  if(cg) $('h_cgst').value = num2(cg[1]);
+  const sg = t.match(/\bSGST\b[^\d\n]*([\d,]+\.\d{2})/i);  if(sg) $('h_sgst').value = num2(sg[1]);
+  /* Round off is its own line on the bill and is needed to check the taxable
+     figure: grand total less tax still carries it, so without it every bill
+     looks a paisa or two out. */
+  const ro = t.match(/Round\s*Off\b[^\d\-(\n]*(\(?-?[\d,]+\.\d{2}\)?)/i);
+  if(ro){
+    let v = ro[1];
+    const neg = /^\(/.test(v);                  // some bills print a credit as (0.36)
+    v = v.replace(/[(),]/g,'');
+    $('h_round').value = (neg ? '-' : '') + v;
+  }
+  /* The closing total reads "Total 2,451.00 KG IN₹ 2,23,485.00" — weight first,
+     then the money, with a currency mark of some sort between them. */
+  const gt = t.match(/\bTotal\b\s+([\d,]+\.\d{2})\s*KG\b[^\d\n]*([\d,]+\.\d{2})/i);
+  if(gt){ $('h_kg').value = num2(gt[1]); $('h_grand').value = num2(gt[2]); }
+}
+
+/* ============================ RENDER: LINES ============================ */
+function renderLines(){
+  const host = $('lines');
+  if(!supLines.length){ host.innerHTML = ''; $('grandTotals').innerHTML = ''; updateBar(); return; }
+  computeAll();
+
+  host.innerHTML = supLines.map((sl,i) => {
+    const sp = sl.split;
+    const blocked = !!sp.issue;
+    const amt = num(sl.amount);
+
+    let inner = '';
+    if(sp.unmapped && sp.unmapped.length){
+      inner += sp.unmapped.map(u => {
+        const sugg = suggestFor(u.code, sl.desc, u.width);
+        const opts = ['<option value="">— pick the Tally item —</option>']
+          .concat(sugg.map(it => `<option value="${esc(it.code)}">★ ${esc(it.name)}  ·  ${esc(it.code)}</option>`))
+          .concat(sugg.length ? ['<option disabled>──────────</option>'] : [])
+          .concat(items.map(it => `<option value="${esc(it.code)}">${esc(it.name)}  ·  ${esc(it.code)}</option>`))
+          .join('');
+        return `<div class="map">
+          <h4>Unknown code: ${esc(u.code)}</h4>
+          <p>${sugg.length ? 'Closest matches are starred.' : 'Pick the Tally item for this code.'}</p>
+          <div class="row">
+            <select data-mapfrom="${esc(u.code)}">${opts}</select>
+            <button class="mini primary" data-savealias="${esc(u.code)}">Save mapping</button>
+          </div>
+        </div>`;
+      }).join('');
+    } else if(sp.needDims && sp.needDims.length){
+      inner += sp.needDims.map(code => {
+        const ov = (sl.dims && sl.dims[code]) || {};
+        const it = findItemForVariant(code);
+        const rl = it ? (rules[it.cat] || rules.flat) : rules.flat;
+        return `<div class="map">
+          <h4>Size needed: ${esc(code)}</h4>
+          <p>${esc(it ? it.name : code)} has no fixed size — type height and length.</p>
+          <div class="row">
+            <div><label class="fld">Height ft</label><input class="dim" data-dim="${i}|${esc(code)}|h" value="${ov.h != null ? ov.h : ''}" style="width:90px"></div>
+            <div><label class="fld">Length ft</label><input class="dim" data-dim="${i}|${esc(code)}|l" value="${ov.l != null ? ov.l : (rl.lengthFt != null ? rl.lengthFt : '')}" style="width:90px"></div>
+          </div>
+        </div>`;
+      }).join('');
+    } else if(sp.issue){
+      inner += `<div class="note bad">${esc(sp.issue)}</div>`;
+    }
+
+    if(!sp.issue && sp.rows.length){
+      const anySized = sp.rows.some(r => r.sizeAtBilling);
+      inner += `<table class="grid">
+        <thead><tr>
+          <th>Code</th><th>Tally item</th>
+          ${anySized?'<th class="num">Ht ft</th><th class="num">Len ft</th>':''}
+          <th class="num">Qty</th><th>Unit</th>
+          <th class="num">Rate</th><th class="num">Amount</th><th>How</th>
+        </tr></thead><tbody>
+        ${sp.rows.map(r => `<tr>
+          <td><code class="k">${esc(r.code)}</code>${r.sizeAtBilling?'<span class="chip">size from bill</span>':''}</td>
+          <td>${esc(r.item.name)}</td>
+          ${anySized ? (r.sizeAtBilling
+            ? `<td class="num"><input class="dim" data-dim="${i}|${esc(r.code)}|h" value="${r.h}" title="${r.hFromOverride?'edited by hand':'read from the narration'}"></td>
+               <td class="num"><input class="dim" data-dim="${i}|${esc(r.code)}|l" value="${r.l}" title="${r.lFromOverride?'edited by hand':'category default'}"></td>`
+            : `<td class="num basis">${r.h}</td><td class="num basis">${r.l}</td>`) : ''}
+          <td class="num">${qtyFmt(r.qty)}</td>
+          <td><span class="pill">${esc(r.unit)}</span></td>
+          <td class="num">${money(r.rate)}${r.carried?'<span class="chip warn">tie</span>':''}</td>
+          <td class="num">${money(r.amount)}</td>
+          <td class="basis">${esc(r.basis)}</td>
+        </tr>`).join('')}
+        </tbody></table>`;
+      if(anySized){
+        inner += `<div class="note">Sizes read from the narration — edit if wrong.</div>`;
+      }
+      const sum = r2(sp.rows.reduce((s,r)=>s+r.amount,0));
+      const ok = Math.abs(sum - amt) < 0.005;
+      inner += `<div class="note ${ok?'ok':'warn'}" style="margin-top:8px">
+        Split adds to ₹${money(sum)} against the supplier's ₹${money(amt)}${ok?' — ties exactly.':` — off by ₹${money(amt-sum)}.`}
+        ${sp.perSqft!=null?` One rate of ₹${money(sp.perSqft)} per sq.ft across ${qtyFmt(r2(sp.totalSqft))} sq.ft.`:''}
+      </div>`;
+      if(sp.drift > 0.01){
+        inner += `<div class="note warn">Rate × qty is ₹${sp.drift.toFixed(2)} off on one row. Raise rate decimals on Pricing rules if Tally recalculates.</div>`;
+      }
+    }
+
+    return `<div class="line ${blocked?'blocked':''}">
+      <div class="line-head">
+        <div>
+          <div class="who">${esc(sl.sl||'')}. ${esc(sl.desc||'(no description)')}</div>
+          <div class="meta">${esc(sl.narration||'no narration')} ${blocked?'<span class="chip bad">needs attention</span>':'<span class="chip ok">ready</span>'}</div>
+        </div>
+        <div class="rt">
+          ${sl.kg!=null?qtyFmt(sl.kg)+' KG':'—'} @ ${sl.rate!=null?money(sl.rate):'—'}<br>
+          <strong>₹${money(amt||0)}</strong>
+          <button class="mini danger" data-rmline="${i}" style="margin-left:8px">Remove</button>
+        </div>
+      </div>
+      <div class="line-body">${inner}</div>
+    </div>`;
+  }).join('');
+
+  renderGrandTotals();
+  updateBar();
+
+  host.querySelectorAll('[data-rmline]').forEach(b => b.onclick = () => {
+    supLines.splice(+b.dataset.rmline, 1); renderLines();
+  });
+  host.querySelectorAll('[data-dim]').forEach(el => el.onchange = () => {
+    const [idx, code, field] = el.dataset.dim.split('|');
+    const sl = supLines[+idx]; if(!sl) return;
+    sl.dims = sl.dims || {};
+    sl.dims[code] = sl.dims[code] || {};
+    const v = el.value.trim();
+    if(v === '' || !(Number(v) > 0)) delete sl.dims[code][field];
+    else sl.dims[code][field] = Number(v);
+    if(!Object.keys(sl.dims[code]).length) delete sl.dims[code];
+    renderLines();
+  });
+  host.querySelectorAll('[data-savealias]').forEach(b => b.onclick = () => {
+    const from = b.dataset.savealias;
+    const sel = host.querySelector(`[data-mapfrom="${CSS.escape(from)}"]`);
+    const to = sel ? sel.value : '';
+    if(!to){ toast('Pick an item first'); return; }
+    const target = items.find(x => tight(x.code) === tight(to));
+    if(!target){ toast('That item is no longer in the master'); return; }
+    addVariant(target, from);
+    save(); renderItems(); renderLines();
+    toast(`${from} now reads as ${target.name}`);
+  });
+}
+
+function renderGrandTotals(){
+  const t = totals();
+  const cg = num($('h_cgst').value), sg = num($('h_sgst').value), gr = num($('h_grand').value);
+  const cmp = (mine, theirs) => {
+    if(theirs == null) return '';
+    const ok = Math.abs(mine - theirs) < 0.005;
+    return `<td class="cmp">${ok ? '<span class="chip ok">matches bill</span>' : `<span class="chip bad">bill says ${money(theirs)}</span>`}</td>`;
+  };
+  /* What the bill itself says the taxable value is: its grand total less the
+     tax it charged and less its own round off. */
+  const ro = num($('h_round').value) || 0;
+  const statedTaxable = (cg != null && sg != null && gr != null) ? r2(gr - cg - sg - ro) : null;
+
+  $('grandTotals').innerHTML = `<div class="totals"><table>
+    <tr><td>Taxable</td>${cmp(t.taxable, statedTaxable)}<td>₹${money(t.taxable)}</td></tr>
+    ${t.local
+      ? `<tr><td>CGST</td>${cmp(t.cCalc, cg)}<td>₹${money(t.cgst)}</td></tr>
+         <tr><td>SGST</td>${cmp(t.sCalc, sg)}<td>₹${money(t.sgst)}</td></tr>`
+      : `<tr><td>IGST</td><td class="cmp"></td><td>₹${money(t.igst)}</td></tr>`}
+    <tr><td>Round off</td><td class="cmp"></td><td>₹${money(t.roundOff)}</td></tr>
+    <tr class="grand"><td>Total</td><td class="cmp"></td><td>₹${money(t.grand)}</td></tr>
+  </table></div>
+  ${t.usingBillTax && (Math.abs(t.cCalc - t.cgst) > 0.005 || Math.abs(t.sCalc - t.sgst) > 0.005)
+    ? `<div class="note warn">Using the bill's own CGST/SGST (ours: ₹${money(t.cCalc)} / ₹${money(t.sCalc)} — paise rounding only).</div>`
+    : ''}`;
+}
+
+/* Blank ledger names import as empty and Tally silently drops the entry, so
+   catch them before the file is written rather than after it's posted. */
+function settingsProblems(){
+  const p = [];
+  if(!String(settings.company||'').trim()) p.push('Company name is blank in Settings.');
+  if(!String(settings.vtype||'').trim())   p.push('Voucher type is blank in Settings.');
+  if(!String(settings.godown||'').trim())  p.push('Godown is blank in Settings.');
+  const sup = activeSupplier();
+  if(!sup || !String(sup.name||'').trim()) p.push('This company has no supplier ledger name.');
+  const needed = new Set();
+  allRows().forEach(r => { if(!purchLedgerFor(r.gst)) needed.add(Math.abs(Number(r.gst)-5)<0.01 ? '5%' : '18%'); });
+  needed.forEach(band => p.push(`No purchase ledger set for ${band} items ${isLocal()?'within':'outside'} ${settings.state||'your state'} — add it in Settings.`));
+  return p;
+}
+
+function updateBar(){
+  const bar = $('exportBar');
+  const blocked = supLines.filter(sl => sl.split && sl.split.issue).length;
+  const ready = supLines.length - blocked;
+  if(!supLines.length){ bar.classList.remove('show'); return; }
+  bar.classList.add('show');
+  const t = totals();
+  const c = activeCompany();
+  const probs = settingsProblems();
+  const dupe = exportLog.find(e => tight(e.invno) === tight($('h_invno').value) && $('h_invno').value.trim());
+  const into = c ? ` · into <b>${esc(c.label)}</b>` : '';
+  $('exportStatus').innerHTML = probs.length
+    ? `<span style="color:var(--bad)">${esc(probs[0])}${probs.length>1?` (+${probs.length-1} more)`:''}</span>`
+    : blocked
+    ? `<span style="color:var(--bad)">${blocked} line${blocked>1?'s':''} still need attention</span> · ${ready} ready · ₹${money(t.taxable)} taxable${into}`
+    : `${ready} line${ready>1?'s':''} ready · ${t.rows.length} stock rows · ₹${money(t.taxable)} taxable · ₹${money(t.grand)} total${dupe?' · <span style="color:var(--warn)">already exported</span>':''}${into}`;
+  $('exportXmlBtn').disabled = blocked > 0 || !ready || probs.length > 0;
+}
+
+/* ============================ XML ============================ */
+function ledgerEntry(name, amount, side, extra, isParty){
+  const dr = side === 'dr';
+  return `<LEDGERENTRIES.LIST>
+<LEDGERNAME>${esc(name)}</LEDGERNAME>
+<ISDEEMEDPOSITIVE>${dr?'Yes':'No'}</ISDEEMEDPOSITIVE>
+<LEDGERFROMITEM>No</LEDGERFROMITEM>
+<REMOVEZEROENTRIES>No</REMOVEZEROENTRIES>
+<ISPARTYLEDGER>${isParty?'Yes':'No'}</ISPARTYLEDGER>
+<ISLASTDEEMEDPOSITIVE>${dr?'Yes':'No'}</ISLASTDEEMEDPOSITIVE>
+<AMOUNT>${dr ? (-Math.abs(amount)).toFixed(2) : Math.abs(amount).toFixed(2)}</AMOUNT>${extra||''}
+</LEDGERENTRIES.LIST>`;
+}
+
+function buildXml(){
+  const t = totals();
+  const sup = activeSupplier() || { name:'', gstin:'', state:settings.state };
+  const date = isoToTally($('h_date').value || todayISO());
+  const invno = $('h_invno').value.trim() || `PUR-${date}`;
+  const withTax = settings.includeTax === 'yes';
+
+  // stock rows: purchase is inward, so amounts sit on the debit side
+  const inv = t.rows.map(r => {
+    const q = `${qtyFmt(r.qty)} ${r.unit}`;
+    const a = (-Math.abs(r.amount)).toFixed(2);
+    return `<ALLINVENTORYENTRIES.LIST>
+<STOCKITEMNAME>${esc(r.item.name)}</STOCKITEMNAME>
+<ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+<RATE>${r.rate}/${esc(r.unit)}</RATE>
+<AMOUNT>${a}</AMOUNT>
+<ACTUALQTY>${q}</ACTUALQTY>
+<BILLEDQTY>${q}</BILLEDQTY>${r.item.hsn?`\n<HSNCODE>${esc(r.item.hsn)}</HSNCODE>`:''}
+<BATCHALLOCATIONS.LIST>
+<GODOWNNAME>${esc(settings.godown)}</GODOWNNAME>
+<BATCHNAME>Primary Batch</BATCHNAME>
+<AMOUNT>${a}</AMOUNT>
+<ACTUALQTY>${q}</ACTUALQTY>
+<BILLEDQTY>${q}</BILLEDQTY>
+</BATCHALLOCATIONS.LIST>
+<ACCOUNTINGALLOCATIONS.LIST>
+<LEDGERNAME>${esc(purchLedgerFor(r.gst))}</LEDGERNAME>
+<ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE>
+<AMOUNT>${a}</AMOUNT>
+</ACCOUNTINGALLOCATIONS.LIST>
+</ALLINVENTORYENTRIES.LIST>`;
+  }).join('\n');
+
+  // party is credited for whatever the debit side adds up to
+  const partyAmt = withTax ? t.grand : t.taxable;
+  const billExtra =
+    `\n<BILLALLOCATIONS.LIST>\n<NAME>${esc(invno)}</NAME>\n<BILLTYPE>New Ref</BILLTYPE>\n<AMOUNT>${partyAmt.toFixed(2)}</AMOUNT>\n</BILLALLOCATIONS.LIST>`;
+
+  let led = ledgerEntry(sup.name, partyAmt, 'cr', billExtra, true);
+  if(withTax){
+    if(t.local){
+      if(t.cgst) led += '\n' + ledgerEntry(settings.cgst, t.cgst, 'dr');
+      if(t.sgst) led += '\n' + ledgerEntry(settings.sgst, t.sgst, 'dr');
+    } else if(t.igst){
+      led += '\n' + ledgerEntry(settings.igst, t.igst, 'dr');
+    }
+    if(t.roundOff) led += '\n' + ledgerEntry(settings.round, Math.abs(t.roundOff), t.roundOff > 0 ? 'dr' : 'cr');
+  }
+
+  const voucher = `<TALLYMESSAGE xmlns:UDF="TallyUDF">
+<VOUCHER VCHTYPE="${esc(settings.vtype)}" ACTION="Create" OBJVIEW="Invoice Voucher View">
+<DATE>${date}</DATE>
+<EFFECTIVEDATE>${date}</EFFECTIVEDATE>
+<VOUCHERNUMBER>${esc(invno)}</VOUCHERNUMBER>
+<NUMBERINGSTYLE>Manual</NUMBERINGSTYLE>
+<REFERENCE>${esc(invno)}</REFERENCE>
+<REFERENCEDATE>${date}</REFERENCEDATE>
+<VOUCHERTYPENAME>${esc(settings.vtype)}</VOUCHERTYPENAME>
+<PARTYLEDGERNAME>${esc(sup.name)}</PARTYLEDGERNAME>
+<PARTYNAME>${esc(sup.name)}</PARTYNAME>
+<PARTYMAILINGNAME>${esc(sup.name)}</PARTYMAILINGNAME>
+<BASICBUYERNAME>${esc(settings.company)}</BASICBUYERNAME>
+<BASICBASEPARTYNAME>${esc(sup.name)}</BASICBASEPARTYNAME>
+<PLACEOFSUPPLY>${esc(settings.state)}</PLACEOFSUPPLY>
+<STATENAME>${esc(sup.state || settings.state)}</STATENAME>
+<COUNTRYOFRESIDENCE>India</COUNTRYOFRESIDENCE>
+<GSTREGISTRATIONTYPE>Regular</GSTREGISTRATIONTYPE>
+<CMPGSTREGISTRATIONTYPE>Regular</CMPGSTREGISTRATIONTYPE>${settings.gstin?`\n<CMPGSTIN>${esc(settings.gstin)}</CMPGSTIN>`:''}${sup.gstin?`\n<PARTYGSTIN>${esc(sup.gstin)}</PARTYGSTIN>`:''}
+<VCHENTRYMODE>Item Invoice</VCHENTRYMODE>
+<DIFFACTUALQTY>No</DIFFACTUALQTY>
+<ISCOMMONPARTY>No</ISCOMMONPARTY>
+<ISDELETED>No</ISDELETED>
+<ISCANCELLED>No</ISCANCELLED>
+<ISOPTIONAL>No</ISOPTIONAL>
+<PERSISTEDVIEW>Invoice Voucher View</PERSISTEDVIEW>
+<ISINVOICE>Yes</ISINVOICE>
+<HASCASHFLOW>No</HASCASHFLOW>
+${led}
+${inv}
+</VOUCHER>
+</TALLYMESSAGE>`;
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<ENVELOPE>
+<HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER>
+<BODY>
+<IMPORTDATA>
+<REQUESTDESC>
+<REPORTNAME>Vouchers</REPORTNAME>
+<STATICVARIABLES><SVCURRENTCOMPANY>${esc(settings.company)}</SVCURRENTCOMPANY></STATICVARIABLES>
+</REQUESTDESC>
+<REQUESTDATA>
+${voucher}
+</REQUESTDATA>
+</IMPORTDATA>
+</BODY>
+</ENVELOPE>`;
+}
+
+function exportXml(){
+  const t = totals();
+  if(!t.rows.length){ toast('Nothing to export yet'); return; }
+  const sup = activeSupplier();
+  if(!sup || !sup.name.trim()){ toast('Set a supplier ledger name first'); return; }
+  const invno = $('h_invno').value.trim();
+  const c = activeCompany();
+  const tag = (c ? c.label : '').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const go = () => {
+    const base = (invno||todayISO()).replace(/[\/\\]/g,'-');
+    download(buildXml(), `purchase-${tag?tag+'-':''}${base}.xml`, 'application/xml');
+    exportLog.unshift({ invno: invno || '(no ref)', date: $('h_date').value || todayISO(),
+                        lines: supLines.length, rows: t.rows.length, taxable: t.taxable,
+                        grand: t.grand, at: new Date().toISOString(), by: cloud.user || '' });
+    save(); renderLog(); updateBar();
+  };
+  const dupe = invno && exportLog.find(e => tight(e.invno) === tight(invno));
+  if(dupe) askConfirm(`${invno} was already exported from ${c ? c.label : 'this company'}. Send it to Tally again?`, go); else go();
+}
+function exportCsv(){
+  const t = totals();
+  const rows = [['Supplier line','Supplier item','Narration','Code','Tally item','Qty','Unit','Rate','Amount']];
+  supLines.forEach(sl => {
+    if(!sl.split || sl.split.issue) return;
+    sl.split.rows.forEach(r => rows.push([sl.sl, sl.desc, sl.narration, r.code, r.item.name, qtyFmt(r.qty), r.unit, r.rate, r.amount]));
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  download(csv, `purchase-summary-${todayISO()}.csv`, 'text/csv');
+}
+function download(text, name, type){
+  const blob = new Blob([text], {type});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 3000);
+}
+
+/* ============================ RENDER: MASTERS ============================ */
+let selectedItems = new Set();
+
+function syncItemCatFilter(){
+  const sel = $('itemCatFilter');
+  const cur = sel.value;
+  const counts = {};
+  items.forEach(it => counts[it.cat] = (counts[it.cat]||0)+1);
+  sel.innerHTML = `<option value="">All categories (${items.length})</option>` +
+    Object.keys(rules).filter(k => counts[k]).map(k =>
+      `<option value="${k}" ${cur===k?'selected':''}>${esc(rules[k].label)} (${counts[k]})</option>`).join('');
+}
+function itemBulkBarHTML(){
+  const n = selectedItems.size;
+  if(!n) return '';
+  return `<div class="bulkbar">
+    <span class="count">${n} selected</span>
+    <button class="mini" id="bulkEditBtn">Bulk edit</button>
+    <button class="mini danger" id="bulkRemoveBtn">Remove selected</button>
+    <button class="mini" id="bulkClearBtn">Clear selection</button>
+  </div>
+  <div class="bulkedit" id="bulkEditPanel">
+    <div><label>Category (blank = no change)</label>
+      <select id="be_cat"><option value="">— no change —</option>${Object.keys(rules).map(k=>`<option value="${k}">${esc(rules[k].label)}</option>`).join('')}</select>
+    </div>
+    <div><label>Unit</label><input id="be_unit" style="width:70px"></div>
+    <div><label>Ht ft</label><input id="be_h" style="width:70px"></div>
+    <div><label>Len ft</label><input id="be_l" style="width:70px"></div>
+    <div><label>HSN</label><input id="be_hsn" style="width:90px"></div>
+    <div><label>GST %</label><input id="be_gst" style="width:56px"></div>
+    <button class="primary mini" id="bulkApplyBtn">Apply to ${n} item${n!==1?'s':''}</button>
+    <button class="mini" id="bulkCancelBtn">Cancel</button>
+  </div>`;
+}
+
+function renderItems(){
+  syncItemCatFilter();
+  const q = tight($('itemSearch').value);
+  const catF = $('itemCatFilter').value;
+  const list = items.map((it,i)=>({it,i})).filter(({it}) =>
+    (!q || tight(it.code).includes(q) || tight(it.name).includes(q) || tight(it.variants||'').includes(q)) &&
+    (!catF || it.cat === catF));
+  const allVisibleSelected = list.length > 0 && list.every(({it}) => selectedItems.has(it));
+
+  /* Two codes reading the same makes lookups pick whichever sits first, which is
+     invisible until a bill prices against the wrong item. */
+  const codeCount = {};
+  items.forEach(it => { const c = tight(it.code); if(c) codeCount[c] = (codeCount[c]||0)+1; });
+  const dups = Object.keys(codeCount).filter(c => codeCount[c] > 1);
+  let warn = dups.length ? `<div class="note bad">
+    ${dups.length} duplicate code${dups.length!==1?'s':''} in the master — billing picks whichever comes first, so these need to be made unique:
+    <div style="margin-top:6px;font-size:11px;font-family:'IBM Plex Mono',monospace">${dups.slice(0,12).map(c =>
+      esc(items.filter(it => tight(it.code)===c).map(it => it.code).join(' / ') + '  →  ' +
+          items.filter(it => tight(it.code)===c).map(it => it.name).join('  |  '))).join('<br>')}
+      ${dups.length>12?`<br>…and ${dups.length-12} more`:''}</div>
+  </div>` : '';
+
+  const bad = items.filter(it => !tight(it.code) || !tight(it.name) || !rules[it.cat]);
+  if(bad.length){
+    warn += `<div class="note bad">
+      ${bad.length} incomplete row${bad.length!==1?'s':''} (missing code, Tally name or category). These can't be billed — finish them below or clear them out.
+      <div class="btnrow" style="margin-top:8px"><button class="mini danger" id="dropBadItems">Remove ${bad.length} incomplete row${bad.length!==1?'s':''}</button></div>
+    </div>`;
+  }
+  $('itemDupWarn').innerHTML = warn;
+  $('itemBulkBar').innerHTML = itemBulkBarHTML();
+
+  $('itemTable').innerHTML = `<thead><tr>
+    <th style="width:26px"><input type="checkbox" id="selectAllItems" ${allVisibleSelected?'checked':''}></th>
+    <th style="min-width:150px">Code</th><th style="min-width:250px">Tally stock item name</th>
+    <th style="min-width:150px">Other codes / spellings</th>
+    <th style="min-width:190px">Category</th><th>Unit</th>
+    <th class="num">Ht ft</th><th class="num">Len ft</th><th>HSN</th><th class="num">GST</th><th></th>
+  </tr></thead><tbody>${
+    list.map(({it,i}) => {
+      const rl = rules[it.cat];
+      const sized = rl && rl.sizeAtBilling;
+      return `<tr>
+      <td><input type="checkbox" data-sel-item="${i}" ${selectedItems.has(it)?'checked':''}></td>
+      <td><input data-it="${i}" data-f="code" value="${esc(it.code)}" style="width:100%;min-width:140px"></td>
+      <td><input data-it="${i}" data-f="name" value="${esc(it.name)}" style="width:100%;min-width:240px"></td>
+      <td><input data-it="${i}" data-f="variants" value="${esc(it.variants||'')}" style="width:100%;min-width:140px" title="Other codes or spellings the supplier uses for this same item — comma separated"></td>
+      <td><select data-it="${i}" data-f="cat">${Object.keys(rules).map(k=>`<option value="${k}"${k===it.cat?' selected':''}>${esc(rules[k].label)}</option>`).join('')}</select></td>
+      <td><input data-it="${i}" data-f="unit" value="${esc(it.unit||'')}" style="width:64px"></td>
+      <td class="num"><input data-it="${i}" data-f="h" value="${it.h==null?'':it.h}" style="width:58px" ${sized?'placeholder="on bill"':''} title="${sized?'Left blank on purpose — the size is typed on the bill for a common-name item':''}"></td>
+      <td class="num"><input data-it="${i}" data-f="l" value="${it.l==null?'':it.l}" style="width:58px"></td>
+      <td><input data-it="${i}" data-f="hsn" value="${esc(it.hsn||'')}" style="width:84px"></td>
+      <td class="num"><input data-it="${i}" data-f="gst" value="${it.gst==null?'':it.gst}" style="width:50px"></td>
+      <td><button class="mini danger" data-rmitem="${i}">Remove</button></td>
+    </tr>`; }).join('') || `<tr><td colspan="11" style="color:var(--ink-soft)">${items.length ? 'No items match that search.' : 'No items yet — add one, or paste a master in from Excel.'}</td></tr>`
+  }</tbody>`;
+
+  $('itemTable').querySelectorAll('[data-it]').forEach(el => el.onchange = () => {
+    const it = items[+el.dataset.it], f = el.dataset.f, v = el.value.trim();
+    it[f] = (f==='h'||f==='l'||f==='gst') ? (v===''?null:Number(v)) : v;
+    save(); renderItems(); renderLines();
+  });
+  $('itemTable').querySelectorAll('[data-rmitem]').forEach(b => b.onclick = () => {
+    const it = items[+b.dataset.rmitem];
+    selectedItems.delete(it);
+    items.splice(+b.dataset.rmitem,1); save(); renderItems(); renderLines();
+  });
+  $('itemTable').querySelectorAll('[data-sel-item]').forEach(cb => cb.onchange = () => {
+    const it = items[+cb.dataset.selItem];
+    if(cb.checked) selectedItems.add(it); else selectedItems.delete(it);
+    renderItems();
+  });
+  const selAll = $('itemTable').querySelector('#selectAllItems');
+  if(selAll) selAll.onchange = () => {
+    list.forEach(({it}) => { if(selAll.checked) selectedItems.add(it); else selectedItems.delete(it); });
+    renderItems();
+  };
+  const dropBad = document.getElementById('dropBadItems');
+  if(dropBad) dropBad.onclick = () => askConfirm(`Remove ${bad.length} incomplete row${bad.length!==1?'s':''} from the master?`, () => {
+    bad.forEach(b => selectedItems.delete(b));
+    items = items.filter(it => tight(it.code) && tight(it.name) && rules[it.cat]);
+    save(); renderItems(); renderLines();
+    toast('Incomplete rows removed');
+  });
+
+  const bEdit = document.getElementById('bulkEditBtn');
+  if(bEdit) bEdit.onclick = () => document.getElementById('bulkEditPanel').classList.toggle('show');
+  const bCancel = document.getElementById('bulkCancelBtn');
+  if(bCancel) bCancel.onclick = () => document.getElementById('bulkEditPanel').classList.remove('show');
+  const bClear = document.getElementById('bulkClearBtn');
+  if(bClear) bClear.onclick = () => { selectedItems.clear(); renderItems(); };
+  const bRemove = document.getElementById('bulkRemoveBtn');
+  if(bRemove) bRemove.onclick = () => {
+    const n = selectedItems.size;
+    askConfirm(`Remove ${n} selected item${n!==1?'s':''} from the master?`, () => {
+      items = items.filter(it => !selectedItems.has(it));
+      selectedItems.clear(); save(); renderItems(); renderLines();
+      toast(`${n} item${n!==1?'s':''} removed`);
+    });
+  };
+  const bApply = document.getElementById('bulkApplyBtn');
+  if(bApply) bApply.onclick = () => {
+    const cat = $('be_cat').value, unit = $('be_unit').value.trim();
+    const hv = $('be_h').value.trim(), lv = $('be_l').value.trim();
+    const hsn = $('be_hsn').value.trim(), gst = $('be_gst').value.trim();
+    let n = 0;
+    selectedItems.forEach(it => {
+      if(cat) it.cat = cat;
+      if(unit) it.unit = unit;
+      if(hv !== '') it.h = Number(hv);
+      if(lv !== '') it.l = Number(lv);
+      if(hsn) it.hsn = hsn;
+      if(gst !== '') it.gst = Number(gst);
+      n++;
+    });
+    save(); renderItems(); renderLines();
+    toast(`Updated ${n} item${n!==1?'s':''}`);
+  };
+}
+
+function renderRules(){
+  $('rulesTable').innerHTML = `<thead><tr>
+    <th>Category</th><th>Splits by area</th><th>Bill by</th><th class="num">Default length ft</th>
+    <th class="num">Tax %</th><th class="num">Rate decimals</th><th>Unit</th>
+  </tr></thead><tbody>${
+    Object.keys(rules).map(k => { const r = rules[k]; return `<tr>
+      <td>${esc(r.label)}</td>
+      <td>${r.dim ? 'yes' : 'no'}</td>
+      <td>${r.dim
+        ? `<select data-rl="${k}" data-f="billBy">
+             <option value="count"${r.billBy!=='sqft'?' selected':''}>Pieces / rolls</option>
+             <option value="sqft"${r.billBy==='sqft'?' selected':''}>Square feet</option>
+           </select>`
+        : '<span class="basis">n/a</span>'}</td>
+      <td class="num"><input data-rl="${k}" data-f="lengthFt" value="${r.lengthFt==null?'':r.lengthFt}" style="width:60px"></td>
+      <td class="num"><input data-rl="${k}" data-f="tax" value="${r.tax}" style="width:52px"></td>
+      <td class="num"><input data-rl="${k}" data-f="decimals" value="${r.decimals}" style="width:52px"></td>
+      <td><input data-rl="${k}" data-f="unit" value="${esc(r.unit)}" style="width:70px"></td>
+    </tr>`; }).join('')
+  }</tbody>`;
+  $('rulesTable').querySelectorAll('[data-rl]').forEach(el => el.onchange = () => {
+    const r = rules[el.dataset.rl], f = el.dataset.f, v = el.value.trim();
+    if(f === 'unit'){ r.unit = v; }
+    else if(f === 'billBy'){
+      r.billBy = v;
+      /* Moving between the two modes changes what the unit and the rate mean,
+         so carry the usual pairing across rather than leaving SQFT on a roll. */
+      if(v === 'sqft'){ if(/^(PCS|ROLL|NOS)$/i.test(r.unit)) r.unit = 'SQFT'; if(Number(r.decimals) < 6) r.decimals = 6; }
+      else { if(/^SQFT$/i.test(r.unit)) r.unit = r.lengthFt === 12 ? 'PCS' : 'ROLL'; r.decimals = 2; }
+    }
+    else { r[f] = (v === '' ? null : Number(v)); }
+    save(); renderRules(); renderLines();
+  });
+  $('r_tie').value = tieMode;
+}
+const SETTINGS_MAP = { company:'s_company', gstin:'s_gstin', state:'s_state', vtype:'s_vtype', godown:'s_godown',
+  purchLocal18:'s_purchLocal18', purchInter18:'s_purchInter18', purchLocal5:'s_purchLocal5', purchInter5:'s_purchInter5',
+  cgst:'s_cgst', sgst:'s_sgst', igst:'s_igst', round:'s_round', includeTax:'s_includeTax' };
+
+function renderSettings(){
+  Object.keys(SETTINGS_MAP).forEach(k => { const el = $(SETTINGS_MAP[k]); if(el) el.value = settings[k] == null ? '' : settings[k]; });
+  const c = activeCompany();
+  $('setScope').textContent = c ? c.label : '';
+  $('s_billMode').value = c && c.billMode === 'sqft' ? 'sqft' : 'count';
+}
+
+function renderWorkspace(){
+  const c = activeCompany();
+  if(!c) return;
+  $('wsCompany').innerHTML = db.companies
+    .map(x => `<option value="${esc(x.id)}"${x.id===c.id?' selected':''}>${esc(x.label)}</option>`).join('');
+  const sup = activeSupplier();
+  $('wsSupplier').innerHTML = c.suppliers.length
+    ? c.suppliers.map(s => `<option value="${esc(s.id)}"${sup&&s.id===sup.id?' selected':''}>${esc(s.name)}</option>`).join('')
+    : '<option value="">— no supplier yet —</option>';
+
+  const local = isLocal();
+  const bySqft = rules.roll_mesh && rules.roll_mesh.billBy === 'sqft';
+  $('wsNote').innerHTML = c
+    ? `Tally company <b>${esc(settings.company || '(name not set)')}</b> · ${items.length} item${items.length===1?'':'s'} in master`
+      + ` · weldmesh billed <b>${bySqft ? 'by sq.ft' : 'by piece / roll'}</b>`
+      + ` · ${sup ? (local ? 'local supply, CGST + SGST' : 'interstate supply, IGST') : 'add a supplier to export'}`
+    : '';
+  $('hdrEyebrow').textContent = c.label;
+  const mxs = $('masterXlsxScope'); if(mxs) mxs.textContent = c.label;
+}
+
+function renderCompanies(){
+  const act = activeCompany();
+  $('companyList').innerHTML = db.companies.map(c => {
+    const isAct = act && c.id === act.id;
+    return `<div class="cocard ${isAct?'active':''}">
+      <div class="cocard-head">
+        <div>
+          <div class="nm">${esc(c.label)} ${isAct?'<span class="chip ok">selected</span>':''}</div>
+          <div class="st">${esc(c.settings.company||'Tally name not set')} · ${c.items.length} items · ${c.suppliers.length} supplier${c.suppliers.length===1?'':'s'} · ${c.exportLog.length} export${c.exportLog.length===1?'':'s'}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${isAct?'':`<button class="mini" data-usecompany="${esc(c.id)}">Switch to this</button>`}
+          <button class="mini danger" data-rmcompany="${esc(c.id)}">Delete</button>
+        </div>
+      </div>
+      <div class="cocard-body">
+        <label class="fld">Label shown in the dropdown</label>
+        <input data-colabel="${esc(c.id)}" value="${esc(c.label)}" style="width:100%;max-width:420px;margin-bottom:10px">
+        <table class="grid">
+          <thead><tr><th>Supplier ledger name</th><th>GSTIN</th><th>State</th><th></th></tr></thead>
+          <tbody>${c.suppliers.map(s => `<tr>
+            <td><input data-sup="${esc(c.id)}|${esc(s.id)}" data-f="name" value="${esc(s.name)}" style="width:260px"></td>
+            <td><input data-sup="${esc(c.id)}|${esc(s.id)}" data-f="gstin" value="${esc(s.gstin||'')}" style="width:170px"></td>
+            <td><input data-sup="${esc(c.id)}|${esc(s.id)}" data-f="state" value="${esc(s.state||'')}" style="width:110px"></td>
+            <td><button class="mini danger" data-rmsup="${esc(c.id)}|${esc(s.id)}">Remove</button></td>
+          </tr>`).join('') || '<tr><td colspan="4" style="color:var(--ink-soft)">No suppliers yet.</td></tr>'}</tbody>
+        </table>
+        <div class="btnrow"><button class="mini" data-addsup="${esc(c.id)}">Add supplier</button></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const opts = db.companies.map(c => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join('');
+  $('copyFrom').innerHTML = opts;
+  $('copyTo').innerHTML = opts;
+  if(db.companies.length > 1) $('copyTo').selectedIndex = 1;
+
+  // --- wiring ---
+  $('companyList').querySelectorAll('[data-usecompany]').forEach(b => b.onclick = () => switchCompany(b.dataset.usecompany));
+  $('companyList').querySelectorAll('[data-colabel]').forEach(el => el.onchange = () => {
+    const c = db.companies.find(x => x.id === el.dataset.colabel);
+    if(c){ c.label = el.value.trim() || 'Untitled company'; save(); renderWorkspace(); renderCompanies(); }
+  });
+  $('companyList').querySelectorAll('[data-sup]').forEach(el => el.onchange = () => {
+    const [cid,sid] = el.dataset.sup.split('|');
+    const c = db.companies.find(x => x.id === cid); if(!c) return;
+    const s = c.suppliers.find(x => x.id === sid); if(!s) return;
+    s[el.dataset.f] = el.value.trim();
+    save(); renderWorkspace(); renderCompanies(); renderLines();
+  });
+  $('companyList').querySelectorAll('[data-addsup]').forEach(b => b.onclick = () => {
+    const c = db.companies.find(x => x.id === b.dataset.addsup); if(!c) return;
+    c.suppliers.push({ id: uid('sup'), name:'', gstin:'', state: c.settings.state || 'Kerala' });
+    save(); renderCompanies(); renderWorkspace();
+  });
+  $('companyList').querySelectorAll('[data-rmsup]').forEach(b => b.onclick = () => {
+    const [cid,sid] = b.dataset.rmsup.split('|');
+    const c = db.companies.find(x => x.id === cid); if(!c) return;
+    if(c.suppliers.length <= 1){ toast('A company needs at least one supplier'); return; }
+    const s = c.suppliers.find(x => x.id === sid);
+    askConfirm(`Remove supplier "${s ? s.name || '(unnamed)' : ''}" from ${c.label}?`, () => {
+      c.suppliers = c.suppliers.filter(x => x.id !== sid);
+      if(c.activeSupplierId === sid) c.activeSupplierId = c.suppliers[0] ? c.suppliers[0].id : null;
+      save(); renderCompanies(); renderWorkspace(); renderLines();
+    });
+  });
+  $('companyList').querySelectorAll('[data-rmcompany]').forEach(b => b.onclick = () => {
+    const c = db.companies.find(x => x.id === b.dataset.rmcompany); if(!c) return;
+    if(db.companies.length <= 1){ toast('There has to be at least one company'); return; }
+    askConfirm(`Delete ${c.label}? Its item master, rules, settings and export log all go with it. This can't be undone without a backup.`, () => {
+      const wasActive = c.id === db.activeCompanyId;
+      db.companies = db.companies.filter(x => x.id !== c.id);
+      if(wasActive){ db.activeCompanyId = db.companies[0].id; hydrate(); selectedItems.clear(); supLines = []; }
+      save(); renderAll();
+      toast(`${c.label} deleted`);
+    });
+  });
+}
+
+function renderLog(){
+  $('logTable').innerHTML = `<thead><tr>
+    <th>Supplier invoice</th><th>Date</th><th class="num">Lines</th><th class="num">Stock rows</th>
+    <th class="num">Taxable</th><th class="num">Total</th><th>Exported</th><th>User</th>
+  </tr></thead><tbody>${
+    exportLog.map(e => `<tr>
+      <td>${esc(e.invno)}</td><td>${esc(e.date)}</td>
+      <td class="num">${e.lines}</td><td class="num">${e.rows}</td>
+      <td class="num">${money(e.taxable)}</td><td class="num">${money(e.grand)}</td>
+      <td>${new Date(e.at).toLocaleString('en-IN')}</td><td>${esc(e.by||'')}</td>
+    </tr>`).join('') || '<tr><td colspan="8" style="color:var(--ink-soft)">Nothing exported for this company yet.</td></tr>'
+  }</tbody>`;
+}
+function renderAll(){ renderStorageBanner(); renderWorkspace(); renderCompanies(); renderItems(); renderRules(); renderSettings(); renderLog(); renderLines(); }
+
+/* ============================ WIRING ============================ */
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x => x.classList.remove('open'));
+  t.classList.add('active'); $('tab-' + t.dataset.tab).classList.add('open');
+});
+
+/* Shared by the Read bill button and by dropping a PDF, so a PDF and a paste
+   travel exactly the same path from here on. */
+function readBill(source){
+  const txt = $('pasteBox').value;
+  if(!txt.trim()){ $('readNote').innerHTML = '<div class="note warn">Drop the invoice PDF, or paste the goods table, first.</div>'; return; }
+  readHeaderBits(txt);
+  const got = readPaste(txt);
+  if(!got.length){
+    $('readNote').innerHTML = `<div class="note bad">No bill lines found${source?` in ${esc(source.replace(/^Read from /,''))}`:''}. Each item needs a line ending in quantity, rate and amount, with its narration on the next line.</div>`;
+    return;
+  }
+  const noNarr = got.filter(g => !g.narration).length;
+  supLines = got;
+  const lead = source ? esc(source) : 'Read';
+  $('readNote').innerHTML = `<div class="note ${noNarr?'warn':'ok'}">${lead}: ${got.length} line${got.length>1?'s':''}${noNarr?` — ${noNarr} without a narration, so those can't be split yet.`:'.'} Check the header figures above against the bill before exporting.</div>`;
+  renderLines();
+}
+$('readBtn').onclick = () => readBill('');
+/* --- PDF intake --- */
+async function loadPdfFile(file){
+  const drop = $('pdfDrop');
+  if(!file){ return; }
+  if(!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf'){
+    $('readNote').innerHTML = '<div class="note bad">That is not a PDF. Drop the supplier\'s invoice PDF, or paste the goods table into the box below.</div>';
+    return;
+  }
+  drop.classList.add('busy');
+  drop.querySelector('.big').textContent = `Reading ${file.name}…`;
+  $('readNote').innerHTML = '';
+  try{
+    const buf = await file.arrayBuffer();
+    const text = await pdfToText(buf);
+    $('pasteBox').value = text;
+    readBill(`Read from ${file.name}`);
+  }catch(err){
+    $('readNote').innerHTML = `<div class="note bad">${esc(err.message || 'That PDF could not be read.')}</div>`;
+  }finally{
+    drop.classList.remove('busy','drag');
+    drop.querySelector('.big').textContent = 'Drop the invoice PDF here';
+  }
+}
+$('pdfDrop').onclick = () => $('pdfInput').click();
+$('pdfInput').onchange = e => { const f = e.target.files[0]; e.target.value = ''; loadPdfFile(f); };
+$('pdfDrop').ondragover = e => { e.preventDefault(); $('pdfDrop').classList.add('drag'); };
+$('pdfDrop').ondragleave = () => $('pdfDrop').classList.remove('drag');
+$('pdfDrop').ondrop = e => {
+  e.preventDefault(); $('pdfDrop').classList.remove('drag');
+  const f = [...(e.dataTransfer.files||[])].find(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
+  if(f) loadPdfFile(f);
+  else $('readNote').innerHTML = '<div class="note bad">No PDF in what was dropped. Drop the invoice PDF, or paste the goods table below.</div>';
+};
+
+$('addLineBtn').onclick = () => {
+  supLines.push({ sl:String(supLines.length+1), desc:'', hsn:'', kg:null, unit:'KG', rate:null, amount:null, narration:'' });
+  renderLines();
+  toast('Fill in the narration and amount on the new line');
+};
+$('clearLinesBtn').onclick = () => askConfirm('Clear every line on this bill?', () => {
+  supLines = []; $('pasteBox').value = ''; $('readNote').innerHTML = ''; renderLines();
+});
+['h_invno','h_date','h_cgst','h_sgst','h_round','h_grand','h_kg'].forEach(id => $(id).oninput = () => { if(supLines.length){ renderGrandTotals(); updateBar(); } });
+
+$('itemSearch').oninput = renderItems;
+$('itemCatFilter').onchange = renderItems;
+
+// ---- Add item: a form that has to be filled in, never a blank row dropped into
+// the master. A half-finished row can't be exported, and a blank code used to
+// prefix-match every unmapped code that came along.
+function openNewItem(){
+  ['niCode','niName','niUnit','niH','niL','niHsn','niGst','niVariants'].forEach(k => $(k).value = '');
+  $('niWarn').innerHTML = '';
+  // No default category — it has to be chosen, so nothing silently prices as a sheet.
+  $('niCat').innerHTML = '<option value="">— select category —</option>' +
+    Object.keys(rules).map(k=>`<option value="${k}">${esc(rules[k].label)}</option>`).join('');
+  $('newItemBox').style.display = 'block';
+  $('pasteItemsBox').style.display = 'none';
+  $('niCode').focus();
+}
+$('addItemBtn').onclick = openNewItem;
+$('niCancel').onclick = () => { $('newItemBox').style.display = 'none'; };
+$('niCode').onblur = () => {
+  const code = $('niCode').value.trim();
+  if(!code) return;
+  const g = guessSpec(code);
+  if(!$('niCat').value && g.cat) $('niCat').value = g.cat;
+  if(!$('niH').value && g.h != null) $('niH').value = g.h;
+  if(!$('niL').value && g.l != null) $('niL').value = g.l;
+  if(!$('niUnit').value && g.cat && rules[g.cat]) $('niUnit').value = rules[g.cat].unit;
+};
+$('niCat').onchange = () => {
+  const cat = $('niCat').value;
+  if(cat && rules[cat] && !$('niUnit').value) $('niUnit').value = rules[cat].unit;
+  if(cat && rules[cat] && rules[cat].sizeAtBilling && !$('niL').value && rules[cat].lengthFt != null){
+    $('niL').value = rules[cat].lengthFt;
+  }
+};
+$('niSave').onclick = () => {
+  const code = $('niCode').value.trim();
+  const name = $('niName').value.trim();
+  const cat  = $('niCat').value;
+  const miss = [];
+  if(!code) miss.push('a code');
+  if(!name) miss.push('the Tally stock item name');
+  if(!cat)  miss.push('a category');
+  if(miss.length){
+    $('niWarn').innerHTML = `<div class="note bad">Still needs ${esc(miss.join(', '))} before it can be saved.</div>`;
+    return;
+  }
+  const clash = items.find(i => tight(i.code) === tight(code));
+  if(clash){
+    $('niWarn').innerHTML = `<div class="note bad">Code ${esc(code)} is already in the master as "${esc(clash.name)}". Edit that row instead, or use a different code.</div>`;
+    return;
+  }
+  const n = v => v.trim()==='' ? null : Number(v);
+  items.unshift({ code, name, cat,
+    unit: $('niUnit').value.trim() || rules[cat].unit,
+    h: n($('niH').value), l: n($('niL').value), bundle: null,
+    hsn: $('niHsn').value.trim(), gst: n($('niGst').value) != null ? n($('niGst').value) : rules[cat].tax,
+    variants: $('niVariants').value.trim() });
+  $('itemSearch').value = ''; $('itemCatFilter').value = '';
+  save(); renderItems(); renderLines();
+  $('newItemBox').style.display = 'none';
+  toast(`Added ${code}`);
+};
+
+$('clearItemsBtn').onclick = () => {
+  if(!items.length){ toast('The item master is already empty'); return; }
+  askConfirm(`Remove all ${items.length} items from ${activeCompany() ? activeCompany().label : 'this company'}? This can't be undone without a backup.`, () => {
+    items = []; selectedItems.clear(); save(); renderItems(); renderLines();
+    toast('Item master cleared');
+  });
+};
+$('pasteItemsBtn').onclick = () => { $('pasteItemsBox').style.display = 'block'; $('newItemBox').style.display = 'none'; };
+$('pasteItemsCancel').onclick = () => { $('pasteItemsBox').style.display = 'none'; $('pasteItemsText').value = ''; };
+$('pasteItemsGo').onclick = () => {
+  let n = 0;
+  splitPaste($('pasteItemsText').value).forEach(c => {
+    if(!c[0] || !c[1]) return;
+    const cat = (c[2] && rules[c[2]]) ? c[2] : guessSpec(c[0]).cat;
+    const g = guessSpec(c[0]);
+    items.push({ code:c[0], name:c[1], cat,
+      unit: c[3] || rules[cat].unit,
+      h: c[4] ? Number(c[4]) : (rules[cat].sizeAtBilling ? null : g.h),
+      l: c[5] ? Number(c[5]) : (g.l != null ? g.l : rules[cat].lengthFt ?? null),
+      bundle: null, hsn: c[6] || '',
+      gst: c[7] ? Number(c[7]) : rules[cat].tax,
+      variants: c[8] || '' });
+    n++;
+  });
+  save(); renderItems(); renderLines();
+  $('pasteItemsBox').style.display = 'none'; $('pasteItemsText').value = '';
+  toast(`Added ${n} item${n===1?'':'s'}`);
+};
+$('itemExportBtn').onclick = () => {
+  // Same column order the paste box expects, so a round trip works.
+  const head = ['Code','Tally Item Name','Category','Unit','Height ft','Length ft','HSN','GST %','Other codes'];
+  const rows = [head].concat(items.map(it => [it.code, it.name, it.cat, it.unit||'',
+    it.h==null?'':it.h, it.l==null?'':it.l, it.hsn||'', it.gst==null?'':it.gst, it.variants||'']));
+  const csv = rows.map(r => r.map(v => `"${String(v==null?'':v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const c = activeCompany();
+  const tag = (c ? c.label : 'company').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  download(csv, `item-master-${tag}-${stamp()}.csv`, 'text/csv');
+  toast(`${items.length} items exported`);
+};
+$('itemBackupBtn').onclick = () => {
+  const c = activeCompany();
+  const tag = (c ? c.label : 'company').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  download(JSON.stringify({ company:c?c.label:'', items, rules, settings }, null, 2),
+           `master-${tag}-${todayISO()}.json`, 'application/json');
+};
+$('itemRestoreBtn').onclick = () => $('restoreInput').click();
+$('restoreInput').onchange = e => {
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    let p = null;
+    try{ p = JSON.parse(rd.result); }catch(err){ p = null; }
+    if(!p || (!Array.isArray(p.items) && !p.settings)){ toast("That file couldn't be read"); return; }
+    const c = activeCompany();
+    askConfirm(`Restore this master into ${c ? c.label : 'the current company'}? Its ${items.length} existing item${items.length===1?'':'s'} are replaced.`, () => {
+      if(Array.isArray(p.items)){ items = p.items; selectedItems.clear(); }
+      items.forEach(i => { if(i.variants == null) i.variants = ''; });
+      /* Older backups kept alternate codes in a separate aliases list. Fold them
+         onto the items they point at, since that's where they live now. */
+      if(Array.isArray(p.aliases)){
+        p.aliases.forEach(a => {
+          if(!a || !a.from || !a.to) return;
+          const target = items.find(i => tight(i.code) === tight(a.to));
+          if(target) addVariant(target, a.from);
+        });
+      }
+      if(p.rules) rules = Object.assign(rules, p.rules);
+      if(p.settings){
+        const s = Object.assign({}, p.settings);
+        delete s.supplier; delete s.supGstin; delete s.supState;   // legacy fields, now on supplier records
+        settings = Object.assign(settings, s);
+      }
+      save(); renderAll(); toast(`Master restored into ${c ? c.label : 'this company'}`);
+    });
+  };
+  rd.readAsText(f); e.target.value = '';
+};
+
+$('saveRules').onclick = () => { tieMode = $('r_tie').value; save(); renderLines(); toast('Rules saved'); };
+$('saveSettings').onclick = () => {
+  Object.keys(SETTINGS_MAP).forEach(k => { const el = $(SETTINGS_MAP[k]); if(el) settings[k] = el.value.trim(); });
+  const c = activeCompany();
+  const mode = $('s_billMode').value === 'sqft' ? 'sqft' : 'count';
+  if(c && c.billMode !== mode){ c.billMode = mode; applyBillMode(rules, mode); }
+  save(); renderWorkspace(); renderCompanies(); renderRules(); renderLines(); toast('Settings saved for this company');
+};
+
+/* --- workspace bar --- */
+$('wsCompany').onchange = () => switchCompany($('wsCompany').value);
+$('wsSupplier').onchange = () => {
+  const c = activeCompany(); if(!c) return;
+  c.activeSupplierId = $('wsSupplier').value;
+  save(); renderWorkspace(); renderLines();
+};
+
+/* --- companies tab --- */
+$('addCompanyBtn').onclick = () => {
+  const label = $('newCompanyName').value.trim();
+  if(!label){ toast('Give the company a name first'); return; }
+  const mode = guessBillMode(label);
+  const c = newCompany(label, { suppliers:[], rules: applyBillMode(defaultRules(), mode) });
+  c.billMode = mode;
+  c.settings.state = settings.state || 'Kerala';
+  db.companies.push(c);
+  $('newCompanyName').value = '';
+  save(); renderCompanies(); renderWorkspace();
+  toast(`${label} added — switch to it to set up its master and ledgers`);
+};
+$('copyMasterBtn').onclick = () => {
+  const from = db.companies.find(c => c.id === $('copyFrom').value);
+  const to   = db.companies.find(c => c.id === $('copyTo').value);
+  if(!from || !to){ toast('Pick both companies'); return; }
+  if(from.id === to.id){ toast('Pick two different companies'); return; }
+  askConfirm(`Replace ${to.label}'s master (${to.items.length} items) with a copy of ${from.label}'s (${from.items.length} items)?`, () => {
+    const copiedItems   = JSON.parse(JSON.stringify(from.items));
+    const copiedAliases = JSON.parse(JSON.stringify(from.aliases));
+    to.items = copiedItems; to.aliases = copiedAliases;
+    if(to.id === db.activeCompanyId){ hydrate(); selectedItems.clear(); }
+    save(); renderAll();
+    toast(`Copied ${copiedItems.length} items into ${to.label} — check the Tally names match that book`);
+  });
+};
+$('wsBackupBtn').onclick = () => { dehydrate(); download(JSON.stringify(db, null, 2), `purchase-builder-workspace-${todayISO()}.json`, 'application/json'); };
+$('wsRestoreBtn').onclick = () => {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
+  inp.onchange = e => {
+    const f = e.target.files[0]; if(!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      let fixed = null;
+      try{ fixed = repair(JSON.parse(rd.result)); }catch(err){ fixed = null; }
+      if(!fixed){ toast("That file isn't a workspace backup"); return; }
+      askConfirm(`Replace the whole workspace with this backup? It has ${fixed.companies.length} compan${fixed.companies.length===1?'y':'ies'}. Everything currently here is discarded.`, () => {
+        db = fixed; hydrate(); selectedItems.clear(); supLines = [];
+        $('pasteBox').value = ''; $('readNote').innerHTML = '';
+        save(); renderAll(); toast('Workspace restored');
+      });
+    };
+    rd.readAsText(f);
+  };
+  inp.click();
+};
+
+/* ============================ MASTER LIST — EXCEL ============================
+   An editable alternative to the JSON backup: items, suppliers and settings as
+   spreadsheets, scoped to whichever company is active (each company keeps its
+   own master, so the file is only ever this one company's). Every item and
+   supplier carries a hidden stable ID, so a row still matches after its code
+   or name is edited in Excel — that's the whole reason renames don't create
+   duplicates on the way back in. Files are parsed and validated up front, then
+   shown as a preview so nothing changes silently. */
+const MASTER_XLSX_MARKER = 'PURCHASEBUILDER-MASTER-V1';
+const SETTINGS_FIELDS_PB = [
+  ['company','Company name in Tally'],
+  ['gstin','Your GSTIN'],
+  ['state','Your state'],
+  ['vtype','Voucher type'],
+  ['godown','Godown'],
+  ['purchLocal18','Purchase ledger — 18% items, within state'],
+  ['purchInter18','Purchase ledger — 18% items, outside state'],
+  ['purchLocal5','Purchase ledger — 5% items, within state'],
+  ['purchInter5','Purchase ledger — 5% items, outside state'],
+  ['cgst','CGST ledger'],
+  ['sgst','SGST ledger'],
+  ['igst','IGST ledger'],
+  ['round','Round off ledger'],
+  ['includeTax','Include tax in the export (yes / no)'],
+  ['billMode','Sheet & roll weldmesh billed by (count / sqft)']
+];
+
+/* Stable row IDs, assigned lazily — nothing existing needs migrating, a row
+   just gets an ID the first time it's exported. */
+function ensureMasterIds(){
+  const c = activeCompany();
+  if(!c) return 0;
+  const used = new Set();
+  items.forEach(it => { if(it.id) used.add(it.id); });
+  c.suppliers.forEach(s => { if(s.id) used.add(s.id); });
+  let counter = 0, assigned = 0;
+  const nextId = prefix => {
+    let id;
+    do { id = prefix + Date.now().toString(36) + (counter++).toString(36); } while(used.has(id));
+    used.add(id);
+    return id;
+  };
+  items.forEach(it => { if(!it.id){ it.id = nextId('I'); assigned++; } });
+  c.suppliers.forEach(s => { if(!s.id){ s.id = nextId('S'); assigned++; } });
+  return assigned;
+}
+
+const ITEM_COL_WIDTHS_PB = [{wch:14},{wch:30},{wch:48},{wch:14},{wch:10},{wch:11},{wch:11},{wch:10},{wch:12},{wch:8},{wch:30}];
+const SUP_COL_WIDTHS_PB  = [{wch:14},{wch:36},{wch:17},{wch:14}];
+
+function itemRowObjectsPB(){
+  ensureMasterIds();
+  return items.map(it => ({
+    'ID': it.id || '', 'Code': it.code, 'Tally Item Name': it.name, 'Category': it.cat,
+    'Unit': it.unit || '', 'Height (ft)': it.h ?? '', 'Length (ft)': it.l ?? '',
+    'Bundle kg': it.bundle ?? '', 'HSN': it.hsn || '', 'GST %': it.gst ?? '', 'Variants': it.variants || ''
+  }));
+}
+function supplierRowObjectsPB(){
+  ensureMasterIds();
+  const c = activeCompany();
+  return (c ? c.suppliers : []).map(s => ({
+    'ID': s.id || '', 'Supplier Name': s.name, 'GSTIN': s.gstin || '', 'State': s.state || ''
+  }));
+}
+
+function buildMasterInstructionsRowsPB(){
+  const c = activeCompany();
+  return [
+    ['Purchase Bill Builder — Master List'],
+    [MASTER_XLSX_MARKER],
+    [],
+    ['Company: ' + (c ? c.label : '')],
+    [],
+    ['HOW THIS FILE WORKS'],
+    ['This is an editable copy of this company’s masters. Change anything here, then upload it back through'],
+    ['"Import from Excel". Nothing is saved until you review the preview and confirm.'],
+    [],
+    ['SHEETS IN THIS FILE'],
+    ['Items', 'One row per item code.'],
+    ['Suppliers', 'One row per supplier — name, GSTIN and state.'],
+    ['Settings', 'One row per Tally setting. Leave a Value blank to leave that setting unchanged.'],
+    ['', '(A sheet is only present if it was included in this export.)'],
+    [],
+    ['HOW THE TOOL WORKS'],
+    ['Bill', 'The supplier bills weldmesh by KG. Each bill line has a narration such as 1x1x8x5-15,4-5'],
+    ['', '(15 rolls of 5ft, 5 rolls of 4ft). The tool reads the widths and counts from that narration.'],
+    ['Split', 'Each line is split by area: one rate per sq.ft = line amount ÷ total sq.ft of that line.'],
+    ['', 'Sq.ft of a row = count × height (ft) × length (ft), using this sheet\'s Height and Length.'],
+    ['', 'The rows always add back to the supplier\'s own line amount, to the paisa.'],
+    ['Billing', 'Pieces / rolls (EKM): qty = number of rolls/pieces, rate = price of one roll/piece.'],
+    ['', 'Sq.ft (Calicut, Kannur): qty = rolls × width × length, rate = price per sq.ft.'],
+    ['', 'Chainlink is always sq.ft. Set per company on the Settings tab.'],
+    ['Weight', 'Wire and nails (kg_bundle, kg_direct) are booked straight in KG at the bill rate — no split.'],
+    ['', 'They are matched by the bill\'s description (e.g. "GI WIRE 3MM") — add that text to Variants.'],
+    ['Flat', 'flat and flat_5 items are booked as they are billed, no split.'],
+    ['Generic', 'A "generic" item is one Tally name for all sizes; the width comes from the narration on each bill.'],
+    ['Tally name', 'Tally Item Name must match the stock item in Tally letter for letter, or Tally creates a duplicate.'],
+    ['Variants', 'Other codes or spellings the supplier uses for the same item. The tool matches ignoring spaces and case.'],
+    ['Voucher', 'The supplier invoice number is used as both the Tally voucher number and the reference.'],
+    [],
+    ['EDITING RULES'],
+    ['1.', 'Do not rename or reorder column headers, and do not rename the sheet tabs — they are read by exact name.'],
+    ['2.', 'Leave ID blank when adding a NEW row. Do not edit or delete the ID on an existing row —'],
+    ['', 'that is how the importer knows to update that row instead of creating a duplicate.'],
+    ['3.', 'Because of the ID, you CAN rename a code or a supplier name here and it will update in place.'],
+    ['4.', 'Items: Category must be one of ' + Object.keys(rules).join(', ') + ' — the tool won\'t guess a new one.'],
+    ['5.', 'Items: Height, Length, Bundle kg and GST % must be plain numbers, or left blank.'],
+    ['6.', 'Items: Variants are other codes/spellings for the same item — separate several with a comma.'],
+    ['7.', 'Suppliers: GSTIN must be 15 characters (2 digit state code + 13 more) or left blank.'],
+    [],
+    ['MERGE vs REPLACE (chosen per sheet when you import)'],
+    ['Merge', 'Updates rows that match an existing ID (or code/name), adds rows that don\'t, deletes nothing. Safe default.'],
+    ['Replace', 'That sheet becomes exactly what is in this file. Anything not listed here is removed.'],
+    [],
+    ['Exported: ' + new Date().toLocaleString()]
+  ];
+}
+
+/* ---------- row-level parsers ---------- */
+function parseItemRowsPB(rows, problems, warnings){
+  const out = [];
+  const seenCodes = new Map(), seenIds = new Map();
+  rows.forEach((r,i) => {
+    const rowNo = i + 2;
+    const id = String(r['ID']||'').trim();
+    const code = String(r['Code']||'').trim();
+    const name = String(r['Tally Item Name']||'').trim();
+    if(!code && !name){ if(Object.values(r).some(v => String(v).trim())) problems.push(`Items row ${rowNo}: Code is empty.`); return; }
+    if(!code){ problems.push(`Items row ${rowNo}: Code is empty.`); return; }
+    if(!name){ problems.push(`Items row ${rowNo} ("${code}"): Tally Item Name is empty.`); return; }
+    if(id && seenIds.has(id)){ problems.push(`Items row ${rowNo}: ID "${id}" appears more than once in this file (also row ${seenIds.get(id)}). Leave ID blank on new rows instead of copying one.`); return; }
+    if(id) seenIds.set(id, rowNo);
+    if(seenCodes.has(tight(code))){ problems.push(`Items row ${rowNo}: code "${code}" appears more than once in this file (also row ${seenCodes.get(tight(code))}).`); return; }
+    seenCodes.set(tight(code), rowNo);
+    const cat = String(r['Category']||'').trim();
+    if(!cat || !rules[cat]){ problems.push(`Items row ${rowNo} ("${code}"): category "${cat}" isn't one of ${Object.keys(rules).join(', ')}.`); return; }
+    const numOrBlank = (field) => {
+      const raw = String(r[field] ?? '').trim();
+      if(raw === '') return null;
+      const n = Number(raw);
+      if(isNaN(n)){ problems.push(`Items row ${rowNo} ("${code}"): ${field} "${raw}" isn't a plain number.`); return undefined; }
+      return n;
+    };
+    const h = numOrBlank('Height (ft)'); if(h === undefined) return;
+    const l = numOrBlank('Length (ft)'); if(l === undefined) return;
+    const bundle = numOrBlank('Bundle kg'); if(bundle === undefined) return;
+    const gst = numOrBlank('GST %'); if(gst === undefined) return;
+    out.push({ id, code, name, cat, unit: String(r['Unit']||'').trim() || rules[cat].unit,
+      h, l, bundle, hsn: String(r['HSN']||'').trim(), gst: gst ?? rules[cat].tax,
+      variants: String(r['Variants']||'').trim() });
+  });
+  return out;
+}
+
+function parseSupplierRowsPB(rows, problems, warnings){
+  const out = [];
+  const seenNames = new Map(), seenIds = new Map();
+  rows.forEach((r,i) => {
+    const rowNo = i + 2;
+    const id = String(r['ID']||'').trim();
+    const name = String(r['Supplier Name']||'').trim();
+    if(!name){ if(Object.values(r).some(v => String(v).trim())) problems.push(`Suppliers row ${rowNo}: Supplier Name is empty.`); return; }
+    if(id && seenIds.has(id)){ problems.push(`Suppliers row ${rowNo}: ID "${id}" appears more than once in this file (also row ${seenIds.get(id)}). Leave ID blank on new rows instead of copying one.`); return; }
+    if(id) seenIds.set(id, rowNo);
+    if(seenNames.has(tight(name))){ problems.push(`Suppliers row ${rowNo}: "${name}" appears more than once in this file (also row ${seenNames.get(tight(name))}).`); return; }
+    seenNames.set(tight(name), rowNo);
+    let gstin = String(r['GSTIN']||'').trim().toUpperCase();
+    if(gstin && !/^[0-9]{2}[A-Z0-9]{13}$/.test(gstin)){
+      warnings.push(`"${name}": GSTIN "${gstin}" doesn't look valid — imported without it.`);
+      gstin = '';
+    }
+    const state = String(r['State']||'').trim();
+    out.push({ id, name, gstin, state });
+  });
+  return out;
+}
+
+function parseSettingsRowsPB(rows, problems, warnings){
+  const patch = {};
+  const byLabel = new Map(SETTINGS_FIELDS_PB.map(([key,label]) => [tight(label), key]));
+  rows.forEach((r,i) => {
+    const rowNo = i + 2;
+    const label = String(r['Field']||'').trim();
+    const value = String(r['Value']||'').trim();
+    if(!label) return;
+    const key = byLabel.get(tight(label));
+    if(!key){ warnings.push(`Settings row ${rowNo}: "${label}" isn't a setting this tool knows — ignored.`); return; }
+    if(value === '') return;
+    if(key === 'billMode' && !['count','sqft'].includes(value.toLowerCase())){
+      problems.push(`Settings row ${rowNo}: billing must be count or sqft — got "${value}".`);
+      return;
+    }
+    if(key === 'includeTax' && !['yes','no'].includes(value.toLowerCase())){
+      problems.push(`Settings row ${rowNo}: "Include tax" must be yes or no — got "${value}".`);
+      return;
+    }
+    patch[key] = (key === 'includeTax' || key === 'billMode') ? value.toLowerCase() : value;
+  });
+  return patch;
+}
+
+function findSheetPB(wb, names){
+  for(const n of names) if(wb.Sheets[n]) return wb.Sheets[n];
+  return null;
+}
+function rowsOfPB(ws){ return ws ? XLSX.utils.sheet_to_json(ws, { defval:'', raw:false }) : null; }
+
+function parseWorkbookPB(wb, want){
+  const problems = [], warnings = [];
+  const parsed = { problems, warnings };
+
+  if(want.requireMarker){
+    const insWs = wb.Sheets['Instructions'];
+    let markerFound = false;
+    if(insWs){
+      const insRows = XLSX.utils.sheet_to_json(insWs, { header:1, defval:'' });
+      markerFound = insRows.some(r => Array.isArray(r) && r.some(c => String(c).trim() === MASTER_XLSX_MARKER));
+    }
+    if(!markerFound){
+      problems.push("This doesn't look like a master list export from this tool (its Instructions sheet is missing or altered). Export a fresh copy and edit that.");
+      return parsed;
+    }
+  }
+
+  if(want.items){
+    const rows = rowsOfPB(findSheetPB(wb, ['Items','Item Master']));
+    if(!rows){ problems.push('No "Items" sheet in that file. Don\'t rename or delete the sheet tabs.'); return parsed; }
+    parsed.items = parseItemRowsPB(rows, problems, warnings);
+  }
+  if(want.suppliers){
+    const rows = rowsOfPB(findSheetPB(wb, ['Suppliers','Parties']));
+    if(!rows){ problems.push('No "Suppliers" sheet in that file. Don\'t rename or delete the sheet tabs.'); return parsed; }
+    parsed.suppliers = parseSupplierRowsPB(rows, problems, warnings);
+  }
+  if(want.settings){
+    const rows = rowsOfPB(findSheetPB(wb, ['Settings']));
+    if(!rows){ problems.push('No "Settings" sheet in that file.'); return parsed; }
+    parsed.settingsPatch = parseSettingsRowsPB(rows, problems, warnings);
+  }
+  return parsed;
+}
+
+/* ---------- merging ---------- */
+function mergeItemListPB(list, mode){
+  if(mode === 'replace'){
+    items = list.map(it => ({...it, id: it.id || undefined}));
+    selectedItems.clear();
+  } else {
+    const byId = new Map(items.filter(it => it.id).map(it => [it.id, it]));
+    const byCode = new Map(items.map(it => [tight(it.code), it]));
+    list.forEach(it => {
+      const hit = (it.id && byId.get(it.id)) || byCode.get(tight(it.code));
+      if(hit) Object.assign(hit, it, { id: hit.id });
+      else items.push({...it, id: it.id || undefined});
+    });
+  }
+  ensureMasterIds();
+}
+function mergeSupplierListPB(list, mode){
+  const c = activeCompany();
+  if(!c) return;
+  if(mode === 'replace'){
+    c.suppliers = list.map(s => ({...s, id: s.id || undefined}));
+    if(!c.suppliers.find(s => s.id === c.activeSupplierId)) c.activeSupplierId = c.suppliers[0] ? c.suppliers[0].id : null;
+  } else {
+    const byId = new Map(c.suppliers.filter(s => s.id).map(s => [s.id, s]));
+    const byName = new Map(c.suppliers.map(s => [tight(s.name), s]));
+    list.forEach(s => {
+      const hit = (s.id && byId.get(s.id)) || byName.get(tight(s.name));
+      if(hit) Object.assign(hit, s, { id: hit.id });
+      else c.suppliers.push({...s, id: s.id || undefined});
+    });
+  }
+  ensureMasterIds();
+}
+
+function countAgainstPB(list, existing, keyFn){
+  const byId = new Map(existing.filter(x => x.id).map(x => [x.id, x]));
+  const byKey = new Map(existing.map(x => [keyFn(x), x]));
+  let nw = 0, upd = 0;
+  list.forEach(x => { if((x.id && byId.get(x.id)) || byKey.get(keyFn(x))) upd++; else nw++; });
+  return { nw, upd, removed: existing.length - upd };
+}
+
+function applyImportPB(parsed, modes){
+  if(parsed.items) mergeItemListPB(parsed.items, modes.items || 'merge');
+  if(parsed.suppliers) mergeSupplierListPB(parsed.suppliers, modes.suppliers || 'merge');
+  if(parsed.settingsPatch){
+    const { billMode, ...rest } = parsed.settingsPatch;
+    Object.assign(settings, rest);
+    const c = activeCompany();
+    if(billMode && c && c.billMode !== billMode){ c.billMode = billMode; applyBillMode(rules, billMode); }
+  }
+  save(); renderAll();
+}
+
+function showImportPreviewPB(parsed, hostId, statusId, onDone){
+  const host = $(hostId);
+  host.innerHTML = '';
+  if(parsed.problems.length){
+    host.innerHTML = `<div class="note bad"><b>${parsed.problems.length} problem${parsed.problems.length!==1?'s':''} found — nothing was imported</b>
+      <ul style="margin:6px 0 4px 18px;padding:0">${parsed.problems.slice(0,25).map(p=>`<li>${esc(p)}</li>`).join('')}</ul>
+      ${parsed.problems.length>25?`<div style="color:var(--ink-soft);font-size:12px">…and ${parsed.problems.length-25} more.</div>`:''}
+      <div class="btnrow" style="margin-top:8px"><button data-imp-close>Close</button></div>
+    </div>`;
+    host.querySelector('[data-imp-close]').onclick = () => host.innerHTML='';
+    return;
+  }
+
+  const c = activeCompany();
+  const sections = [];
+  if(parsed.items)     sections.push(['items','Items', countAgainstPB(parsed.items, items, x => tight(x.code))]);
+  if(parsed.suppliers) sections.push(['suppliers','Suppliers', countAgainstPB(parsed.suppliers, c ? c.suppliers : [], x => tight(x.name))]);
+
+  const modes = {};
+  sections.forEach(([key]) => { modes[key] = 'merge'; });
+  const settingsCount = parsed.settingsPatch ? Object.keys(parsed.settingsPatch).length : 0;
+
+  host.innerHTML = `<div class="note" style="border-color:var(--line)">
+    <b>Ready to import into ${esc(c ? c.label : 'this company')} — choose what to do for each sheet</b>
+    <div style="color:var(--ink-soft);font-size:12px;margin:6px 0 10px">
+      ${sections.map(([,label,cc]) => `${label}: ${cc.nw} new, ${cc.upd} matched existing`).join('<br>')}
+      ${parsed.settingsPatch ? `${sections.length?'<br>':''}Settings: ${settingsCount} field${settingsCount!==1?'s':''} will change (always merged — blank cells leave a setting alone)` : ''}
+    </div>
+    ${sections.map(([key,label,cc]) => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="min-width:110px;font-weight:600">${label}</span>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="impb-${key}" value="merge" checked>Merge</label>
+        <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="impb-${key}" value="replace">Replace</label>
+        <span class="impb-warn-${key}" style="color:var(--bad);font-size:12px;display:none">⚠ removes ${cc.removed} not in file</span>
+      </div>`).join('')}
+    ${parsed.warnings.length ? `<div style="color:var(--ink-soft);font-size:12px;margin-top:6px">${parsed.warnings.length} note(s): ${esc(parsed.warnings.slice(0,3).join(' · '))}${parsed.warnings.length>3?' …':''}</div>` : ''}
+    <div class="btnrow" style="margin-top:10px">
+      <button class="primary" data-imp-apply>Apply import</button>
+      <button data-imp-cancel>Cancel</button>
+    </div>
+  </div>`;
+
+  sections.forEach(([key]) => {
+    host.querySelectorAll(`input[name="impb-${key}"]`).forEach(rb => rb.onchange = e => {
+      modes[key] = e.target.value;
+      const w = host.querySelector(`.impb-warn-${key}`);
+      if(w) w.style.display = (modes[key]==='replace') ? 'inline' : 'none';
+    });
+  });
+  host.querySelector('[data-imp-apply]').onclick = () => {
+    applyImportPB(parsed, modes);
+    host.innerHTML = '';
+    const st = $(statusId);
+    if(st){ st.style.color = ''; st.textContent = 'Imported and saved.'; }
+    toast(onDone || 'Imported.');
+  };
+  host.querySelector('[data-imp-cancel]').onclick = () => host.innerHTML='';
+}
+
+function readWorkbookPB(file, statusId, want, hostId, doneMsg){
+  const statusEl = $(statusId);
+  statusEl.style.color = ''; statusEl.textContent = 'Reading Excel file…';
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const wb = XLSX.read(new Uint8Array(reader.result), { type:'array' });
+      const parsed = parseWorkbookPB(wb, want);
+      statusEl.textContent = '';
+      showImportPreviewPB(parsed, hostId, statusId, doneMsg);
+    }catch(err){
+      statusEl.style.color = 'var(--bad)';
+      statusEl.textContent = 'Could not read that file — make sure it\'s an .xlsx exported from this tool.';
+    }
+  };
+  reader.onerror = () => { statusEl.style.color = 'var(--bad)'; statusEl.textContent = 'Could not read that file.'; };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ---------- item master: export / import (this company only) ---------- */
+$('itemXlsxExportBtn').onclick = () => {
+  const c = activeCompany();
+  const tag = (c ? c.label : 'company').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  const ws = XLSX.utils.json_to_sheet(itemRowObjectsPB());
+  ws['!cols'] = ITEM_COL_WIDTHS_PB;
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(buildMasterInstructionsRowsPB()), 'Instructions');
+  XLSX.utils.book_append_sheet(wb, ws, 'Items');
+  XLSX.writeFile(wb, `item-master-${tag}-${stamp()}.xlsx`);
+  save();
+  toast(`${items.length} items exported.`);
+};
+$('itemXlsxImportBtn').onclick = () => $('itemXlsxImportFile').click();
+$('itemXlsxImportFile').onchange = e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if(!file) return;
+  readWorkbookPB(file, 'itemXlsxStatus', { items:true }, 'itemXlsxPreview', 'Item master imported.');
+};
+
+/* ---------- full master list: export / import (items + suppliers + settings, this company) ---------- */
+function exportMasterExcelPB(){
+  const statusEl = $('masterXlsxStatus');
+  statusEl.style.color = ''; statusEl.textContent = 'Preparing Excel file…';
+  const c = activeCompany();
+  try{
+    const wb = XLSX.utils.book_new();
+
+    const insWs = XLSX.utils.aoa_to_sheet(buildMasterInstructionsRowsPB());
+    insWs['!cols'] = [{wch:14},{wch:100}];
+    XLSX.utils.book_append_sheet(wb, insWs, 'Instructions');
+
+    const itWs = XLSX.utils.json_to_sheet(itemRowObjectsPB());
+    itWs['!cols'] = ITEM_COL_WIDTHS_PB;
+    XLSX.utils.book_append_sheet(wb, itWs, 'Items');
+
+    const spWs = XLSX.utils.json_to_sheet(supplierRowObjectsPB());
+    spWs['!cols'] = SUP_COL_WIDTHS_PB;
+    XLSX.utils.book_append_sheet(wb, spWs, 'Suppliers');
+
+    const sWs = XLSX.utils.json_to_sheet(SETTINGS_FIELDS_PB.map(([key,label]) => ({ 'Field': label, 'Value': key === 'billMode' ? ((activeCompany()||{}).billMode || 'count') : (settings[key] ?? '') })));
+    sWs['!cols'] = [{wch:44},{wch:34}];
+    XLSX.utils.book_append_sheet(wb, sWs, 'Settings');
+
+    const tag = (c ? c.label : 'company').replace(/[^A-Za-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    XLSX.writeFile(wb, `purchase-master-${tag}-${stamp()}.xlsx`);
+    save();
+    statusEl.textContent = `Exported ${items.length} items, ${c ? c.suppliers.length : 0} supplier(s) and settings for ${c ? c.label : 'this company'}. Edit it, then use "Import from Excel" to bring changes back.`;
+  }catch(err){
+    statusEl.style.color = 'var(--bad)';
+    statusEl.textContent = err.message || 'Could not create the Excel file.';
+  }
+}
+$('masterXlsxExportBtn').onclick = exportMasterExcelPB;
+$('masterXlsxImportBtn').onclick = () => $('masterXlsxImportFile').click();
+$('masterXlsxImportFile').onchange = e => {
+  const file = e.target.files[0]; e.target.value = '';
+  if(!file) return;
+  readWorkbookPB(file, 'masterXlsxStatus',
+    { requireMarker:true, items:true, suppliers:true, settings:true },
+    'masterXlsxPreview', 'Master list imported.');
+};
+
+$('clearLogBtn').onclick = () => askConfirm('Clear the export log for this company?', () => { exportLog = []; save(); renderLog(); updateBar(); });
+$('exportXmlBtn').onclick = exportXml;
+$('exportCsvBtn').onclick = exportCsv;
+
+$('h_date').value = todayISO();
+load().then(cloudStart);
+</script>
+</body>
+</html>
